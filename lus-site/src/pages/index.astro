@@ -1,0 +1,91 @@
+---
+import { getCollection } from "astro:content"
+
+import Layout from "../components/Layout.astro"
+import Card from "../components/Card.astro"
+import ReleaseCard from "../components/ReleaseCard.astro"
+import NewsIcon from "../components/icons/News.astro"
+import DownloadIcon from "../components/icons/Download.astro"
+
+import { getAllReleases } from "../lib/release"
+
+const { stable, unstable } = await getAllReleases()
+const news = await getCollection("news")
+---
+
+<Layout>
+  <main>
+    <Card>
+      <h2 slot="title">A simple, straightforward language.</h2>
+      <p>
+        You've reached the website of <b>Lus</b>, a small, fast, and reliable
+        programming language derived from <a
+          href="https://lua.org"
+          target="_blank">Lua</a
+        >.
+      </p>
+    </Card>
+    <section id="download">
+      <h1>Download</h1>
+      <div class="flex gap-4">
+        {
+          stable ? (
+            <ReleaseCard
+              name="Stable"
+              version={stable.version}
+              releaseDate={stable.releaseDate}
+              links={stable.links}
+              color="lime"
+            >
+              This is the latest stable release of Lus and is recommended for
+              most users.
+            </ReleaseCard>
+          ) : (
+            <Card color="lime" class="flex-1">
+              <h2 slot="title">
+                <DownloadIcon class="inline-block w-4 h-4" />
+                Stable
+              </h2>
+              <p>No stable release available yet.</p>
+            </Card>
+          )
+        }
+        {
+          unstable ? (
+            <ReleaseCard
+              name="Unstable"
+              version={unstable.version}
+              releaseDate={unstable.releaseDate}
+              links={unstable.links}
+              color="red"
+            >
+              These builds are available for testing and previewing new
+              features.
+            </ReleaseCard>
+          ) : (
+            <Card color="red" class="flex-1">
+              <h2 slot="title">
+                <DownloadIcon class="inline-block w-4 h-4" />
+                Unstable
+              </h2>
+              <p>No unstable release available yet.</p>
+            </Card>
+          )
+        }
+      </div>
+    </section>
+    <section id="news">
+      <h1>News</h1>
+      <ul>
+        {
+          news.map((news) => (
+            <li>
+              {news.data.date} -{" "}
+              <a href={`/news/${news.id}`}>{news.data.title}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </main>
+</Layout>

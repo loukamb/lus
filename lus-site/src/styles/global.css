@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Atkinson Hyperlegible Next Variable", sans-serif;
+  --font-mono: "Atkinson Hyperlegible Mono Variable", monospace;
+}
+
+@utility lus-shadow {
+  box-shadow: 0.4rem 0.4rem 0px 0 var(--tw-shadow-color);
+}
+
+body {
+  @apply font-sans text-lime-950 bg-lime-50;
+}
+
+main {
+  @apply container mx-auto p-8 space-y-8;
+}
+
+a {
+  @apply underline hover:no-underline text-lime-700 font-bold;
+}
+
+header {
+  @apply container mx-auto px-8 pt-4 flex items-end gap-4;
+
+  nav {
+    @apply text-lime-700;
+    a {
+      @apply font-normal no-underline hover:bg-lime-200;
+    }
+  }
+}
+
+footer {
+  @apply container mx-auto px-8 pt-4 flex items-end gap-4 text-lime-800 opacity-80 text-sm italic;
+}
+
+section {
+  @apply space-y-2;
+
+  h1 {
+    @apply text-2xl font-bold;
+  }
+
+  h2 {
+    @apply text-xl font-semibold;
+  }
+
+  h3 {
+    @apply text-lg font-semibold;
+  }
+
+  p:has(+ h2),
+  ul:has(+ h2),
+  ol:has(+ h2) {
+    @apply mb-8;
+  }
+
+  pre code {
+    @apply block max-w-full overflow-x-scroll bg-white px-4;
+  }
+}
+
+ul {
+  @apply list-disc list-outside pl-4 space-y-2;
+}
+
+li {
+  @apply list-item;
+}

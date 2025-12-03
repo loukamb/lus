@@ -1,0 +1,10 @@
+# Meson build directory
+build/
+builddir/
+.cache
+
+# Object files (in case of stray compilation)
+*.o
+
+# Static library
+*.a

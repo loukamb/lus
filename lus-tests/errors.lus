@@ -1,0 +1,321 @@
+--[[
+  Comprehensive Error Handling Tests for Lus
+  Tests: error(), assert(), and catch expression
+  
+  Note: pcall and xpcall have been removed from Lus.
+  All protected execution is done via the 'catch' expression.
+]]
+
+global print, setmetatable, assert, error, type, _G, coroutine, require, pcall, xpcall, os
+
+local testbase = require("lus-tests._base")
+local tests = testbase.new("errors")
+
+tests:try("error() with string message", function()
+    local ok, err = catch error("test error")
+    assert(not ok)
+    assert(err:find("test error"), "Error message should contain 'test error'")
+end)
+
+tests:try("error() with number message", function()
+    local ok, err = catch error(42)
+    assert(not ok)
+    assert(type(err) == "string", "Error should be converted to string")
+end)
+
+tests:try("error() with table message", function()
+    local t = {code = 500, msg = "Internal error"}
+    local ok, err = catch error(t)
+    assert(not ok)
+    assert(type(err) == "string", "Error should be converted to string")
+end)
+
+tests:try("error() with level 0", function()
+    local ok, err = catch error("custom error", 0)
+    assert(not ok)
+    assert(err:find("custom error"), "Error message should contain the original text")
+end)
+
+tests:try("assert() with true", function()
+    local result = assert(true)
+    assert(result == true)
+end)
+
+tests:try("assert() with truthy value", function()
+    local result = assert(42)
+    assert(result == 42)
+end)
+
+tests:try("assert() with string", function()
+    local result = assert("hello")
+    assert(result == "hello")
+end)
+
+tests:try("assert() with false raises error", function()
+    local ok, err = catch assert(false)
+    assert(not ok)
+    assert(err:find("assertion failed"))
+end)
+
+tests:try("assert() with nil raises error", function()
+    local ok = catch assert(nil)
+    assert(not ok)
+end)
+
+tests:try("assert() with custom message", function()
+    local ok, err = catch assert(false, "custom failure message")
+    assert(not ok)
+    assert(err:find("custom failure message"))
+end)
+
+tests:try("assert() preserves multiple return values", function()
+    local a, b, c = assert(1, 2, 3)
+    assert(a == 1 and b == 2 and c == 3)
+end)
+
+tests:try("catch with successful expression", function()
+    local ok, result = catch 1 + 2
+    assert(ok == true)
+    assert(result == 3)
+end)
+
+tests:try("catch with failing expression (nil arithmetic)", function()
+    local ok, err = catch 1 + nil
+    assert(ok == false)
+    assert(type(err) == "string")
+    assert(err:find("nil"))
+end)
+
+tests:try("catch with successful function call", function()
+    local function add(a, b) return a + b end
+    local ok, result = catch add(10, 20)
+    assert(ok == true)
+    assert(result == 30)
+end)
+
+tests:try("catch with failing function call", function()
+    local function fail() error("function failed") end
+    local ok, err = catch fail()
+    assert(ok == false)
+    assert(err:find("function failed"))
+end)
+
+tests:try("catch with error() directly", function()
+    local ok, err = catch error("direct error")
+    assert(ok == false)
+    assert(err:find("direct error"))
+end)
+
+tests:try("catch with nested function error", function()
+    local function inner() error("from inner") end
+    local function outer() inner() end
+    local ok, err = catch outer()
+    assert(ok == false)
+    assert(err:find("from inner"))
+end)
+
+tests:try("catch with multi-return function", function()
+    local function multi() return 1, 2, 3 end
+    local ok, a, b, c = catch multi()
+    assert(ok == true)
+    assert(a == 1 and b == 2 and c == 3)
+end)
+
+tests:try("catch with fewer returns than expected (nil-fill)", function()
+    local function two() return 10, 20 end
+    local ok, a, b, c, d = catch two()
+    assert(ok == true)
+    assert(a == 10 and b == 20)
+    assert(c == nil and d == nil)
+end)
+
+tests:try("catch error with nil-fill for extra vars", function()
+    local function fails() error("oops") end
+    local x, y, z = catch fails()
+    assert(x == false)
+    assert(type(y) == "string")
+    assert(z == nil, "Extra variables should be nil on error")
+end)
+
+tests:try("catch returned from function preserves all values", function()
+    local function multi() return "a", "b", "c" end
+    local function wrapper()
+        return catch multi()
+    end
+    local ok, v1, v2, v3 = wrapper()
+    assert(ok == true)
+    assert(v1 == "a" and v2 == "b" and v3 == "c")
+end)
+
+tests:try("catch in table constructor", function()
+    local function multi() return 1, 2, 3 end
+    local t = { catch multi() }
+    assert(t[1] == true)
+    assert(t[2] == 1 and t[3] == 2 and t[4] == 3)
+end)
+
+tests:try("catch with vararg function", function()
+    local function varfn(...) return ... end
+    local ok, a, b, c = catch varfn(100, 200, 300)
+    assert(ok == true)
+    assert(a == 100 and b == 200 and c == 300)
+end)
+
+tests:try("catch in local assignment", function()
+    local status, value = catch (100 / 2)
+    assert(status == true)
+    assert(value == 50)
+end)
+
+tests:try("catch in global assignment", function()
+    _G.test_status, _G.test_value = catch error("global test")
+    assert(_G.test_status == false)
+    assert(type(_G.test_value) == "string")
+    _G.test_status, _G.test_value = nil, nil
+end)
+
+tests:try("catch as function argument", function()
+    local function receive(a, b)
+        return a, b
+    end
+    local x, y = receive(catch (42))
+    assert(x == true)
+    assert(y == 42)
+end)
+
+tests:try("catch in print (success)", function()
+    local old_print = print
+    local captured = {}
+    print = function(...) captured = {...} end
+    print(catch (999))
+    print = old_print
+    assert(captured[1] == true)
+    assert(captured[2] == 999)
+end)
+
+tests:try("catch with method call success", function()
+    local obj = {
+        value = 21,
+        double = function(self) return self.value * 2 end
+    }
+    local ok, result = catch obj:double()
+    assert(ok == true and result == 42)
+end)
+
+tests:try("catch with method call error", function()
+    local obj = {
+        fail = function(self) error("method error") end
+    }
+    local ok, err = catch obj:fail()
+    assert(ok == false)
+    assert(err:find("method error"))
+end)
+
+tests:try("catch in loop", function()
+    local errors = 0
+    for i = 1, 5 do
+        local ok = catch error("loop " .. i)
+        if not ok then errors = errors + 1 end
+    end
+    assert(errors == 5)
+end)
+
+tests:try("catch with nil indexing", function()
+    local t = nil
+    local ok, err = catch t.field
+    assert(ok == false)
+    assert(err:find("nil"))
+end)
+
+tests:try("catch does not affect outer scope on error", function()
+    local x = 100
+    local ok = catch error("test")
+    assert(ok == false)
+    assert(x == 100, "Local variable should be unchanged")
+end)
+
+tests:try("pcall is not defined", function()
+    assert(pcall == nil, "pcall should not exist")
+end)
+
+tests:try("xpcall is not defined", function()
+    assert(xpcall == nil, "xpcall should not exist")
+end)
+
+tests:try("catch with very deep call stack", function()
+    local function recurse(n)
+        if n <= 0 then return n end
+        return recurse(n - 1)
+    end
+    local ok, result = catch recurse(100)
+    assert(ok == true)
+    assert(result == 0)
+end)
+
+tests:try("catch with error in deeply nested call", function()
+    local function recurse(n)
+        if n <= 0 then error("bottom") end
+        return recurse(n - 1)
+    end
+    local ok, err = catch recurse(50)
+    assert(ok == false)
+    assert(err:find("bottom"))
+end)
+
+tests:try("catch multiple times in sequence", function()
+    for i = 1, 100 do
+        local ok = catch error("seq " .. i)
+        assert(ok == false)
+    end
+end)
+
+tests:try("catch handles table errors", function()
+    local err_obj = {code = 404, message = "not found"}
+    local function throw_obj() error(err_obj) end
+    local ok, err = catch throw_obj()
+    assert(ok == false)
+    assert(type(err) == "string")
+end)
+
+tests:try("catch with metamethod error (__add)", function()
+    local mt = {
+        __add = function() error("metamethod error") end
+    }
+    local a = setmetatable({}, mt)
+    local ok, err = catch (a + 1)
+    assert(ok == false)
+    assert(err:find("metamethod error"))
+end)
+
+tests:try("catch with metamethod error (__index)", function()
+    local mt = {
+        __index = function() error("index error") end
+    }
+    local a = setmetatable({}, mt)
+    local ok, err = catch a.foo
+    assert(ok == false)
+    assert(err:find("index error"))
+end)
+
+tests:try("catch with metamethod error (__call)", function()
+    local mt = {
+        __call = function() error("call error") end
+    }
+    local a = setmetatable({}, mt)
+    local ok, err = catch a()
+    assert(ok == false)
+    assert(err:find("call error"))
+end)
+
+tests:try("catch with coroutine.yield in main thread", function()
+    local ok, err = catch coroutine.yield()
+    assert(ok == false)
+end)
+
+tests:try("catch with assert failure", function()
+    local ok, err = catch assert(false, "assert failed")
+    assert(ok == false)
+    assert(err:find("assert failed"))
+end)
+
+os.exit(tests:status())

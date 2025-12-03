@@ -1,0 +1,38 @@
+---
+import { getCollection, getEntry, render } from "astro:content"
+
+import Layout from "../../components/Layout.astro"
+
+export async function getStaticPaths() {
+  const news = await getCollection("news")
+  return news.map((news) => ({
+    params: { id: news.id },
+  }))
+}
+
+const thisNews = await getEntry("news", Astro.params.id)!
+const renderedNews = await render(thisNews)
+---
+
+<Layout title={thisNews.data.title}>
+  <main>
+    <article>
+      <p class="date">{thisNews.data.date}</p>
+      <renderedNews.Content />
+    </article>
+  </main>
+</Layout>
+
+<style>
+  @reference "../../styles/global.css";
+
+  article {
+    .date {
+      @apply text-sm text-lime-800;
+    }
+  }
+
+  article :global(h1) {
+    @apply text-2xl font-bold text-lime-800 pb-4;
+  }
+</style>

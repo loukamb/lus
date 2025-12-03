@@ -1,0 +1,51 @@
+<div
+  class:list={["card", Astro.props.class]}
+  data-color={Astro.props.color || "lime"}
+>
+  <slot name="title" />
+  <p><slot /></p>
+</div>
+
+<style>
+  @reference "../styles/global.css";
+
+  .card {
+    @apply border lus-shadow bg-linear-to-br;
+
+    h2 {
+      @apply font-semibold text-lg border-b border-dashed lowercase px-4 py-2;
+    }
+
+    p {
+      @apply px-4 py-1;
+    }
+
+    button {
+      @apply inline-flex items-center gap-2 px-2 py-1 bg-linear-to-br;
+    }
+
+    &[data-color="lime"] {
+      @apply border-lime-500 from-lime-100 to-lime-400 lus-shadow shadow-lime-500/40 text-lime-950;
+
+      h2 {
+        @apply text-lime-800;
+      }
+
+      button {
+        @apply from-lime-400 to-lime-600 hover:from-lime-500 hover:to-lime-700;
+      }
+    }
+
+    &[data-color="red"] {
+      @apply border-red-500 from-red-100 to-red-400 lus-shadow shadow-red-500/40 text-red-950;
+
+      h2 {
+        @apply text-red-800;
+      }
+
+      button {
+        @apply from-red-400 to-red-600 hover:from-red-500 hover:to-red-700;
+      }
+    }
+  }
+</style>

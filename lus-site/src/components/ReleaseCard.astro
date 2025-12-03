@@ -1,0 +1,96 @@
+---
+import type { ReleaseLinks } from "../lib/release"
+import Card from "./Card.astro"
+
+import DownloadIcon from "./icons/Download.astro"
+
+import PlatformWindows from "./icons/PlatformWindows.astro"
+import PlatformMac from "./icons/PlatformMac.astro"
+import PlatformLinuxGlibc from "./icons/PlatformLinuxGlibc.astro"
+import PlatformLinuxMusl from "./icons/PlatformLinuxMusl.astro"
+
+interface Props {
+  version: string
+  releaseDate: string
+  name: string
+  color?: "lime" | "red"
+  links?: ReleaseLinks
+}
+
+const { version, releaseDate, name, color = "lime", links } = Astro.props
+---
+
+<Card color={color} class="flex-1">
+  <h2 slot="title">
+    <DownloadIcon class="inline-block w-4 h-4" />
+    {name}
+    ({version})
+  </h2>
+  <p>Released on {releaseDate}. <slot /></p>
+  <div class="px-4 mt-2 flex gap-2 flex-wrap items-center">
+    {
+      links?.windows ? (
+        <a href={links.windows} class="no-underline font-normal text-lime-950">
+          <PlatformWindows class="inline-block w-4 h-4" /> Windows
+        </a>
+      ) : (
+        <button disabled>
+          <PlatformWindows class="inline-block w-4 h-4" /> Windows
+        </button>
+      )
+    }
+    {
+      links?.macos ? (
+        <a href={links.macos} class="no-underline font-normal text-lime-950">
+          <PlatformMac class="inline-block w-4 h-4" /> macOS (Silicon)
+        </a>
+      ) : (
+        <button disabled>
+          <PlatformMac class="inline-block w-4 h-4" /> macOS (Silicon)
+        </button>
+      )
+    }
+    {
+      links?.linuxGlibc ? (
+        <a
+          href={links.linuxGlibc}
+          class="no-underline font-normal text-lime-950"
+        >
+          <PlatformLinuxGlibc class="inline-block w-4 h-4" /> Linux (glibc)
+        </a>
+      ) : (
+        <button disabled>
+          <PlatformLinuxGlibc class="inline-block w-4 h-4" /> Linux (glibc)
+        </button>
+      )
+    }
+    {
+      links?.linuxMusl ? (
+        <a
+          href={links.linuxMusl}
+          class="no-underline font-normal text-lime-950"
+        >
+          <PlatformLinuxMusl class="inline-block w-4 h-4" /> Linux (musl)
+        </a>
+      ) : (
+        <button disabled>
+          <PlatformLinuxMusl class="inline-block w-4 h-4" /> Linux (musl)
+        </button>
+      )
+    }
+    {
+      links?.sourceTarball ? (
+        <a
+          href={links.sourceTarball}
+          class="no-underline font-normal text-lime-950"
+        >
+          <DownloadIcon class="inline-block w-4 h-4" /> Source code
+        </a>
+      ) : (
+        <button disabled>
+          <DownloadIcon class="inline-block w-4 h-4" /> Source code
+        </button>
+      )
+    }
+  </div>
+</Card>

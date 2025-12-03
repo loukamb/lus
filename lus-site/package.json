@@ -1,0 +1,18 @@
+{
+  "name": "lus-site",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@fontsource-variable/atkinson-hyperlegible-mono": "^5.2.5",
+    "@fontsource-variable/atkinson-hyperlegible-next": "^5.2.6",
+    "@tailwindcss/vite": "^4.1.17",
+    "astro": "^5.16.3",
+    "tailwindcss": "^4.1.17"
+  }
+}

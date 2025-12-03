@@ -1,0 +1,192 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # Sanitizer build to catch memory bugs
+  sanitize:
+    name: Sanitizers (ASan + UBSan)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson llvm
+
+      - name: Build with sanitizers
+        run: |
+          cd lus
+          meson setup build --buildtype=debug -Db_sanitize=address,undefined -Db_lundef=false
+          meson compile -C build lus:executable
+
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=0:print_stacktrace=1:symbolize=1
+          UBSAN_OPTIONS: print_stacktrace=1:symbolize=1
+        run: meson test -C lus/build -v --print-errorlogs
+
+  linux-glibc:
+    name: Linux (glibc)
+    needs: sanitize
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson
+
+      - name: Build
+        run: |
+          cd lus
+          meson setup build --buildtype=release
+          meson compile -C build lus:executable
+
+      - name: Test
+        run: meson test -C lus/build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lus-linux
+          path: lus/build/lus
+
+  linux-musl:
+    name: Linux (musl)
+    needs: sanitize
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:latest
+
+    steps:
+      - name: Install dependencies
+        run: apk add --no-cache build-base meson
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          cd lus
+          meson setup build --buildtype=release
+          meson compile -C build lus:executable
+
+      - name: Test
+        run: meson test -C lus/build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lus-linux-musl
+          path: lus/build/lus
+
+  windows:
+    name: Windows (x64)
+    needs: sanitize
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup Meson
+        run: pip install meson
+
+      - name: Build
+        run: |
+          cd lus
+          meson setup build --buildtype=release
+          meson compile -C build lus:executable
+
+      - name: Test
+        run: meson test -C lus/build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lus-windows
+          path: lus/build/lus.exe
+
+  macos-silicon:
+    name: macOS (Apple Silicon)
+    needs: sanitize
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install meson readline
+
+      - name: Build
+        run: |
+          cd lus
+          meson setup build --buildtype=release
+          meson compile -C build lus:executable
+
+      - name: Test
+        run: meson test -C lus/build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lus-macos
+          path: lus/build/lus
+
+  release:
+    name: Create Pre-release
+    needs: [linux-glibc, linux-musl, windows, macos-silicon]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          cp artifacts/lus-linux/lus release/lus-linux
+          cp artifacts/lus-linux-musl/lus release/lus-linux-musl
+          cp artifacts/lus-macos/lus release/lus-macos
+          cp artifacts/lus-windows/lus.exe release/lus-windows.exe
+
+      - name: Delete existing unstable release
+        run: gh release delete unstable --yes --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create unstable release
+        run: |
+          gh release create unstable \
+            --title "Unstable Build" \
+            --notes "Automated build from commit ${{ github.sha }}" \
+            --prerelease \
+            release/*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

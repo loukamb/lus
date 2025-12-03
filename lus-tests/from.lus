@@ -1,0 +1,217 @@
+--[[
+    Test suite for the 'from' table deconstruction feature in Lus.
+    
+    Syntax:
+    - local a, b, c from t   -- equivalent to: local a, b, c = t.a, t.b, t.c
+    - global a, b, c from t  -- equivalent to: global a, b, c = t.a, t.b, t.c
+    - a, b, c from t         -- equivalent to: a, b, c = t.a, t.b, t.c
+]]
+
+global print, setmetatable, assert, type, require, os
+
+local testbase = require("lus-tests._base")
+local tests = testbase.new("from")
+
+tests:try("local from basic", function()
+    local t = { a = 1, b = 2, c = 3 }
+    local a, b, c from t
+    assert(a == 1 and b == 2 and c == 3)
+end)
+
+tests:try("local from single variable", function()
+    local t = { x = 10 }
+    local x from t
+    assert(x == 10)
+end)
+
+tests:try("local from mixed types", function()
+    local t = { name = "test", value = 42, flag = true }
+    local name, value, flag from t
+    assert(name == "test" and value == 42 and flag == true)
+end)
+
+tests:try("local from with nil value", function()
+    local t = { a = nil, b = 2 }
+    local a, b from t
+    assert(a == nil and b == 2)
+end)
+
+tests:try("local from empty table", function()
+    local t = {}
+    local x, y, z from t
+    assert(x == nil and y == nil and z == nil)
+end)
+
+tests:try("local from nested table", function()
+    local t = { data = { inner = 1 }, count = 5 }
+    local data, count from t
+    assert(type(data) == "table" and data.inner == 1 and count == 5)
+end)
+
+tests:try("local from with function value", function()
+    local t = { fn = function() return 42 end }
+    local fn from t
+    assert(type(fn) == "function" and fn() == 42)
+end)
+
+tests:try("local from function call", function()
+    local function getTable()
+        return { a = 100, b = 200 }
+    end
+    local a, b from getTable()
+    assert(a == 100 and b == 200)
+end)
+
+tests:try("local from conditional expression", function()
+    local t1 = { x = 1 }
+    local t2 = { x = 2 }
+    local condition = true
+    local x from (condition and t1 or t2)
+    assert(x == 1)
+end)
+
+tests:try("local from nested field access", function()
+    local outer = { inner = { deep = 42 } }
+    local deep from outer.inner
+    assert(deep == 42)
+end)
+
+tests:try("global from basic", function()
+    local t = { gd = 4, ge = 5, gf = 6 }
+    global gd, ge, gf from t
+    assert(gd == 4 and ge == 5 and gf == 6)
+end)
+
+tests:try("global from single variable", function()
+    local t = { gsingle = 99 }
+    global gsingle from t
+    assert(gsingle == 99)
+end)
+
+tests:try("global from mixed types", function()
+    local t = { gmixed = "hello", gnum = 3.14 }
+    global gmixed, gnum from t
+    assert(gmixed == "hello" and gnum == 3.14)
+end)
+
+tests:try("bare assignment from to locals", function()
+    local t = { x = 10, y = 20 }
+    local x, y
+    x, y from t
+    assert(x == 10 and y == 20)
+end)
+
+tests:try("bare assignment from multiple locals", function()
+    local t = { ba = 1, bb = 2, bc = 3 }
+    local ba, bb, bc
+    ba, bb, bc from t
+    assert(ba == 1 and bb == 2 and bc == 3)
+end)
+
+tests:try("bare assignment from single local", function()
+    local t = { val = 42 }
+    local val = 0
+    val from t
+    assert(val == 42)
+end)
+
+tests:try("first assignment from t1", function()
+    local t1 = { x = 1, y = 2 }
+    local x, y from t1
+    assert(x == 1 and y == 2)
+end)
+
+tests:try("reassignment from t2", function()
+    local t1 = { x = 1, y = 2 }
+    local t2 = { x = 10, y = 20 }
+    local x, y from t1
+    x, y from t2
+    assert(x == 10 and y == 20)
+end)
+
+tests:try("from ignores array part", function()
+    local t = { [1] = "array", a = "hash" }
+    local a from t
+    assert(a == "hash")
+end)
+
+tests:try("from with long variable name", function()
+    local t = { longVariableName = 123 }
+    local longVariableName from t
+    assert(longVariableName == 123)
+end)
+
+tests:try("from with 5 variables", function()
+    local t = { a = 1, b = 2, c = 3, d = 4, e = 5 }
+    local a, b, c, d, e from t
+    assert(a == 1 and b == 2 and c == 3 and d == 4 and e == 5)
+end)
+
+tests:try("table expression evaluated once", function()
+    local call_count = 0
+    local function getTable()
+        call_count = call_count + 1
+        return { a = call_count, b = call_count }
+    end
+    local a, b from getTable()
+    assert(call_count == 1 and a == 1 and b == 1)
+end)
+
+tests:try("from on nested table", function()
+    local outer = { inner = { x = 42 } }
+    local x from outer.inner
+    assert(x == 42)
+end)
+
+tests:try("from inside if block", function()
+    local t = { success = true, value = 100 }
+    local result
+    if s = t.success then
+        local value from t
+        result = value
+    end
+    assert(result == 100)
+end)
+
+tests:try("from inside caught function", function()
+    local t = { a = 1 }
+    local ok, err = catch (function()
+        local a from t
+        return a
+    end)()
+    assert(ok == true and err == 1)
+end)
+
+tests:try("inner scope shadows outer", function()
+    local a = 999
+    do
+        local t = { a = 1 }
+        local a from t
+        assert(a == 1)
+    end
+end)
+
+tests:try("outer scope unchanged", function()
+    local a = 999
+    do
+        local t = { a = 1 }
+        local a from t
+    end
+    assert(a == 999)
+end)
+
+tests:try("from followed by regular assignment", function()
+    local t = { a = 1, b = 2 }
+    local a, b from t
+    local c = 3
+    assert(a == 1 and b == 2 and c == 3)
+end)
+
+tests:try("regular assignment then from", function()
+    local t = { x = 10, y = 20 }
+    local z = 30
+    local x, y from t
+    assert(x == 10 and y == 20 and z == 30)
+end)
+
+os.exit(tests:status())

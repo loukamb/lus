@@ -1,0 +1,42 @@
+---
+import { Image } from "astro:assets"
+import "@fontsource-variable/atkinson-hyperlegible-next"
+import "@fontsource-variable/atkinson-hyperlegible-next/wght-italic.css"
+import "@fontsource-variable/atkinson-hyperlegible-mono"
+import "@fontsource-variable/atkinson-hyperlegible-mono/wght-italic.css"
+
+import "../styles/global.css"
+import logo from "../assets/logo.svg"
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Lus{Astro.props.title && ` - ${Astro.props.title}`}</title>
+  </head>
+  <body>
+    <header>
+      <Image src={logo} alt="Lus" class="lus-logo" width={64} height={64} />
+      <nav>
+        <a href="/">home</a>
+        ·
+        <a href="/manual">manual</a>
+        ·
+        <a href="/news">news</a>
+      </nav>
+    </header>
+    <slot />
+    <footer>
+      <p>
+        Lus is a personal project and copyright of <a
+          href="https://louka.sh"
+          target="_blank">Louka Ménard Blondin</a
+        > licensed under the 0-clause BSD license. Lua is copyrighted by
+        <a href="https://www.puc-rio.br/english/" target="_blank">PUC-Rio</a> and
+        licensed under the MIT license.
+      </p>
+    </footer>
+  </body>
+</html>
