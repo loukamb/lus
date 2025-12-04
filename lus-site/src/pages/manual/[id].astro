@@ -22,9 +22,7 @@ const rendered = await render(page)
         {
           manual
             .toSorted((a, b) => a.data.order - b.data.order)
-            .map((page) => (
-              <a href={`/manual/${page.id}`}>{page.data.title}</a>
-            ))
+            .map((page) => <a href={`/manual/${page.id}`}>{page.data.title}</a>)
         }
       </aside>
       <article class="flex-1 min-w-0">
