@@ -176,17 +176,16 @@ jobs:
           cp artifacts/lus-macos/lus release/lus-macos
           cp artifacts/lus-windows/lus.exe release/lus-windows.exe
 
-      - name: Delete existing unstable release
-        run: gh release delete unstable --yes --cleanup-tag || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Create unstable release
         run: |
-          gh release create unstable \
-            --title "Unstable Build" \
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          
+          gh release create "unstable-${SHORT_SHA}" \
+            --title "Unstable (${SHORT_SHA})" \
             --notes "Automated build from commit ${{ github.sha }}" \
             --prerelease \
+            --latest \
             release/*
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
