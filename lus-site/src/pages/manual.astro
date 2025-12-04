@@ -189,26 +189,7 @@ local useState, useEffect from require("react")
         </code>
       </pre>
       <h2>Library Differences</h2>
-      <h3>Socket Module</h3>
-      <p>
-        Lua does not have standard library functions for fetching HTTP resources
-        or handling sockets.
-      </p>
-      <p>
-        Lus introduces the <code>http</code> and <code>socket</code> global libraries,
-        which provide basic interfaces for fetching HTTP resources and handling sockets.
-      </p>
-      <pre>
-        <code>
-{`global http, socket
--- FYI, the global statement is a Lua 5.5 feature and not a Lus-specific feature.
--- Lua programmers may not be familiar with it since it is a recent addition to the language.
-
-local response = http.get("https://www.google.com")
-print(response.body)
-`}
-        </code>
-      </pre>
+      To do.
     </section>
   </main>
 </Layout>
