@@ -1,0 +1,7 @@
+{
+  "name": "lus-site",
+  "compatibility_date": "2025-12-04",
+  "assets": {
+    "directory": "./dist"
+  }
+}

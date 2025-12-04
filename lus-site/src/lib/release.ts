@@ -1,4 +1,4 @@
-const GITHUB_REPO = "lua-lus/lus"
+const GITHUB_REPO = "loukamb/lus"
 
 export interface ReleaseLinks {
   windows?: string
