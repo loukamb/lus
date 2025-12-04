@@ -1,10 +1,7 @@
 /**
  * Client-side WASM loader for Lus playground
- * Dynamically fetches WASM builds from GitHub releases
+ * Loads WASM from static files fetched at build time
  */
-
-const GITHUB_REPO = "loukamb/lus"
-const WASM_ASSETS = { js: "lus.js", wasm: "lus.wasm" }
 
 export interface WasmRelease {
   version: string
@@ -18,60 +15,46 @@ export interface WasmReleases {
   unstable: WasmRelease | null
 }
 
-interface GitHubAsset {
-  name: string
-  browser_download_url: string
+interface WasmManifest {
+  stable: { version: string } | null
+  unstable: { version: string } | null
 }
 
-interface GitHubRelease {
-  tag_name: string
-  prerelease: boolean
-  assets: GitHubAsset[]
+function toWasmRelease(
+  entry: { version: string } | null,
+  isStable: boolean
+): WasmRelease | null {
+  if (!entry) return null
+
+  const version = entry.version
+  return {
+    version,
+    jsUrl: `/wasm/${encodeURIComponent(version)}/lus.js`,
+    wasmUrl: `/wasm/${encodeURIComponent(version)}/lus.wasm`,
+    isStable,
+  }
 }
 
 /**
- * Fetches available WASM releases from GitHub
+ * Fetches available WASM releases from the build-time manifest
  */
 export async function getWasmReleases(): Promise<WasmReleases> {
-  const res = await fetch(
-    `https://api.github.com/repos/${GITHUB_REPO}/releases`,
-    {
-      headers: {
-        Accept: "application/vnd.github.v3+json",
-      },
+  try {
+    const res = await fetch("/wasm/manifest.json")
+    if (!res.ok) {
+      console.error(`Failed to fetch WASM manifest: ${res.status}`)
+      return { stable: null, unstable: null }
     }
-  )
 
-  if (!res.ok) {
-    console.error(`GitHub API error: ${res.status}`)
-    return { stable: null, unstable: null }
-  }
-
-  const releases: GitHubRelease[] = await res.json()
-
-  const findRelease = (prerelease: boolean): WasmRelease | null => {
-    const rel = releases.find((r) => r.prerelease === prerelease)
-    if (!rel) return null
-
-    const assets = new Map(
-      rel.assets.map((a) => [a.name, a.browser_download_url])
-    )
-    const jsUrl = assets.get(WASM_ASSETS.js)
-    const wasmUrl = assets.get(WASM_ASSETS.wasm)
-
-    if (!jsUrl || !wasmUrl) return null
+    const manifest: WasmManifest = await res.json()
 
     return {
-      version: rel.tag_name,
-      jsUrl,
-      wasmUrl,
-      isStable: !prerelease,
+      stable: toWasmRelease(manifest.stable, true),
+      unstable: toWasmRelease(manifest.unstable, false),
     }
-  }
-
-  return {
-    stable: findRelease(false),
-    unstable: findRelease(true),
+  } catch (e) {
+    console.error("Failed to load WASM manifest:", e)
+    return { stable: null, unstable: null }
   }
 }
 
@@ -135,4 +118,3 @@ export async function loadLusWasm(release: WasmRelease): Promise<LusModule> {
     throw e
   }
 }
-

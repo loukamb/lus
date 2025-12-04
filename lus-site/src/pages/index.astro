@@ -4,8 +4,6 @@ import { getCollection } from "astro:content"
 import Layout from "../components/Layout.astro"
 import Card from "../components/Card.astro"
 import ReleaseCard from "../components/ReleaseCard.astro"
-import Playground from "../components/Playground.astro"
-import NewsIcon from "../components/icons/News.astro"
 import DownloadIcon from "../components/icons/Download.astro"
 
 import { getAllReleases } from "../lib/release"
@@ -23,7 +21,7 @@ const news = await getCollection("news")
         programming language derived from <a
           href="https://lua.org"
           target="_blank">Lua</a
-        >.
+        >. <a href="/playground">Try it in your browser →</a>
       </p>
     </Card>
     <section id="download">
@@ -74,10 +72,6 @@ const news = await getCollection("news")
           )
         }
       </div>
-    </section>
-    <section id="playground">
-      <h1>Playground</h1>
-      <Playground />
     </section>
     <section id="news">
       <h1>News</h1>

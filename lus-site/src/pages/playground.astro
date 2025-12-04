@@ -1,0 +1,291 @@
+---
+import Layout from "../components/Layout.astro"
+---
+
+<Layout title="Playground">
+  <main class="min-h-[80vh] h-[80vh]">
+    <div class="playground-page">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <button id="run-btn" disabled>Run</button>
+          <button id="clear-btn">Clear</button>
+        </div>
+        <div class="toolbar-right">
+          <select id="version-select" disabled>
+            <option value="">Loading...</option>
+          </select>
+          <span id="version-tag"></span>
+        </div>
+      </div>
+      <div class="editor-container">
+        <div class="editor-pane">
+          <textarea
+            id="code-editor"
+            spellcheck="false"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            placeholder="-- Write your Lus code here..."></textarea>
+        </div>
+        <div class="output-pane">
+          <div class="output-header">Output</div>
+          <div class="output-content" id="output"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import { getWasmReleases, loadLusWasm } from "../lib/wasm-loader"
+  import type { WasmRelease, LusModule } from "../lib/wasm-loader"
+
+  const codeEditor = document.getElementById(
+    "code-editor"
+  ) as HTMLTextAreaElement
+  const output = document.getElementById("output")!
+  const runBtn = document.getElementById("run-btn") as HTMLButtonElement
+  const clearBtn = document.getElementById("clear-btn") as HTMLButtonElement
+  const versionSelect = document.getElementById(
+    "version-select"
+  ) as HTMLSelectElement
+  const versionTag = document.getElementById("version-tag")!
+
+  let currentModule: LusModule | null = null
+  let releases: { stable: WasmRelease | null; unstable: WasmRelease | null }
+
+  function appendOutput(
+    text: string,
+    type: "output" | "error" | "system" = "output"
+  ) {
+    const lines = text.split("\n")
+    for (const lineText of lines) {
+      if (lineText === "" && type === "output") continue
+      const line = document.createElement("div")
+      line.className = `output-line ${type}`
+      line.textContent = lineText
+      output.appendChild(line)
+    }
+    output.scrollTop = output.scrollHeight
+  }
+
+  function clearOutput() {
+    output.innerHTML = ""
+  }
+
+  async function loadVersion(release: WasmRelease) {
+    runBtn.disabled = true
+    clearOutput()
+    appendOutput("Loading...", "system")
+
+    try {
+      if (currentModule) {
+        currentModule.destroy()
+        currentModule = null
+      }
+
+      currentModule = await loadLusWasm(release)
+      clearOutput()
+      runBtn.disabled = false
+      versionTag.textContent = release.isStable ? "stable" : "unstable"
+      versionTag.className = release.isStable ? "tag stable" : "tag unstable"
+    } catch (e) {
+      appendOutput(`Failed to load: ${e}`, "error")
+    }
+  }
+
+  function runCode() {
+    if (!currentModule) return
+
+    const code = codeEditor.value
+    if (!code.trim()) return
+
+    try {
+      const result = currentModule.execute(code)
+      if (result && result.trim()) {
+        appendOutput(result.trimEnd(), "output")
+      } else {
+        appendOutput("(no output)", "system")
+      }
+    } catch (e) {
+      appendOutput(String(e), "error")
+    }
+  }
+
+  // Initialize
+  async function init() {
+    try {
+      releases = await getWasmReleases()
+
+      versionSelect.innerHTML = ""
+
+      if (releases.stable) {
+        const opt = document.createElement("option")
+        opt.value = "stable"
+        opt.textContent = `${releases.stable.version} (stable)`
+        versionSelect.appendChild(opt)
+      }
+
+      if (releases.unstable) {
+        const opt = document.createElement("option")
+        opt.value = "unstable"
+        opt.textContent = `${releases.unstable.version} (unstable)`
+        versionSelect.appendChild(opt)
+      }
+
+      if (!releases.stable && !releases.unstable) {
+        appendOutput("No WASM builds available.", "error")
+        return
+      }
+
+      versionSelect.disabled = false
+
+      const defaultRelease = releases.stable || releases.unstable
+      if (defaultRelease) {
+        await loadVersion(defaultRelease)
+      }
+    } catch (e) {
+      appendOutput(`Failed to fetch releases: ${e}`, "error")
+    }
+  }
+
+  // Event handlers
+  runBtn.addEventListener("click", runCode)
+  clearBtn.addEventListener("click", clearOutput)
+
+  codeEditor.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault()
+      runCode()
+    }
+    // Handle Tab for indentation
+    if (e.key === "Tab") {
+      e.preventDefault()
+      const start = codeEditor.selectionStart
+      const end = codeEditor.selectionEnd
+      codeEditor.value =
+        codeEditor.value.substring(0, start) +
+        "  " +
+        codeEditor.value.substring(end)
+      codeEditor.selectionStart = codeEditor.selectionEnd = start + 2
+    }
+  })
+
+  versionSelect.addEventListener("change", async () => {
+    const selected = versionSelect.value
+    const release = selected === "stable" ? releases.stable : releases.unstable
+    if (release) {
+      await loadVersion(release)
+    }
+  })
+
+  // Load example code
+  codeEditor.value = `print("Hello, Lus!")`
+
+  init()
+</script>
+
+<style>
+  @reference "../styles/global.css";
+
+  .playground-page {
+    @apply flex flex-col flex-1 h-full min-h-full;
+  }
+
+  .toolbar {
+    @apply flex items-center justify-between px-4 py-2 bg-lime-900 border-b border-lime-700;
+  }
+
+  .toolbar-left {
+    @apply flex items-center gap-2;
+  }
+
+  .toolbar-right {
+    @apply flex items-center gap-2;
+  }
+
+  .toolbar button {
+    @apply px-4 py-1.5 font-bold text-sm cursor-pointer transition-colors;
+
+    &:disabled {
+      @apply opacity-50 cursor-not-allowed;
+    }
+  }
+
+  #run-btn {
+    @apply bg-lime-500 text-lime-950 hover:bg-lime-400;
+
+    &:disabled {
+      @apply hover:bg-lime-500;
+    }
+  }
+
+  #clear-btn {
+    @apply bg-lime-800 text-lime-200 hover:bg-lime-700;
+  }
+
+  .toolbar select {
+    @apply bg-lime-800 text-lime-200 border border-lime-600 px-2 py-1.5 text-sm cursor-pointer;
+
+    &:disabled {
+      @apply opacity-50 cursor-not-allowed;
+    }
+  }
+
+  .tag {
+    @apply px-2 py-0.5 text-xs font-bold uppercase;
+
+    &.stable {
+      @apply bg-lime-600 text-lime-950;
+    }
+
+    &.unstable {
+      @apply bg-red-600 text-red-100;
+    }
+  }
+
+  .editor-container {
+    @apply flex flex-col flex-1 min-h-0;
+  }
+
+  @media (min-width: 768px) {
+    .editor-container {
+      @apply flex-row;
+    }
+  }
+
+  .editor-pane {
+    @apply flex-1 min-h-0 flex flex-col;
+  }
+
+  #code-editor {
+    @apply flex-1 w-full p-4 bg-lime-950 text-lime-100 font-mono text-sm resize-none outline-none border-none;
+    @apply placeholder-lime-700;
+    tab-size: 2;
+  }
+
+  .output-pane {
+    @apply flex flex-col bg-lime-950 border-t border-lime-700;
+    @apply min-h-48 md:min-h-0 md:w-96 md:border-t-0 md:border-l;
+  }
+
+  .output-header {
+    @apply px-4 py-2 bg-lime-900 text-lime-400 text-sm font-bold uppercase tracking-wide border-b border-lime-700;
+  }
+
+  .output-content {
+    @apply flex-1 overflow-y-auto p-4 font-mono text-sm min-h-32;
+  }
+
+  :global(.output-line) {
+    @apply whitespace-pre-wrap break-all text-lime-100;
+
+    &.system {
+      @apply text-lime-400 italic;
+    }
+
+    &.error {
+      @apply text-red-400;
+    }
+  }
+</style>

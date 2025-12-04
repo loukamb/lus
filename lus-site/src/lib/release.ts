@@ -5,6 +5,8 @@ export interface ReleaseLinks {
   macos?: string
   linuxGlibc?: string
   linuxMusl?: string
+  wasmJs?: string
+  wasmBinary?: string
   sourceZip?: string
   sourceTarball?: string
 }
@@ -36,6 +38,8 @@ const ASSET_NAMES = {
   macos: "lus-macos",
   linuxGlibc: "lus-linux",
   linuxMusl: "lus-linux-musl",
+  wasmJs: "lus.js",
+  wasmBinary: "lus.wasm",
 }
 
 function parseAssetLinks(release: GitHubRelease): ReleaseLinks {
@@ -48,6 +52,8 @@ function parseAssetLinks(release: GitHubRelease): ReleaseLinks {
     macos: assetMap.get(ASSET_NAMES.macos),
     linuxGlibc: assetMap.get(ASSET_NAMES.linuxGlibc),
     linuxMusl: assetMap.get(ASSET_NAMES.linuxMusl),
+    wasmJs: assetMap.get(ASSET_NAMES.wasmJs),
+    wasmBinary: assetMap.get(ASSET_NAMES.wasmBinary),
     sourceZip: release.zipball_url,
     sourceTarball: release.tarball_url,
   }
@@ -64,7 +70,6 @@ async function fetchGitHubReleases(): Promise<GitHubRelease[] | null> {
       {
         headers: {
           Accept: "application/vnd.github.v3+json",
-          "User-Agent": "lus-site",
         },
       }
     )
@@ -121,8 +126,14 @@ export async function getAllReleases(): Promise<{
     return { stable: null, unstable: null }
   }
 
-  const stableRelease = releases.find((r) => !r.prerelease)
-  const unstableRelease = releases.find((r) => r.prerelease)
+  // Sort by published_at descending to ensure we get the latest releases
+  const sorted = [...releases].sort(
+    (a, b) =>
+      new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
+  )
+
+  const stableRelease = sorted.find((r) => !r.prerelease)
+  const unstableRelease = sorted.find((r) => r.prerelease)
 
   return {
     stable: stableRelease
