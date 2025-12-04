@@ -57,8 +57,10 @@ section {
     @apply mb-8;
   }
 
-  pre code {
-    @apply block max-w-full overflow-x-scroll bg-white px-4;
+  pre {
+    code {
+      @apply block overflow-x-scroll bg-white px-4;
+    }
   }
 }
 

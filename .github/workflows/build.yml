@@ -151,9 +151,36 @@ jobs:
           name: lus-macos
           path: lus/build/lus
 
+  wasm:
+    name: WebAssembly
+    needs: sanitize
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.64
+
+      - name: Build WASM
+        run: |
+          cd lus/wasm
+          ./build.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lus-wasm
+          path: |
+            lus/wasm/dist/lus.js
+            lus/wasm/dist/lus.wasm
+
   release:
     name: Create Pre-release
-    needs: [linux-glibc, linux-musl, windows, macos-silicon]
+    needs: [linux-glibc, linux-musl, windows, macos-silicon, wasm]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -175,6 +202,8 @@ jobs:
           cp artifacts/lus-linux-musl/lus release/lus-linux-musl
           cp artifacts/lus-macos/lus release/lus-macos
           cp artifacts/lus-windows/lus.exe release/lus-windows.exe
+          cp artifacts/lus-wasm/lus/wasm/dist/lus.js release/lus.js
+          cp artifacts/lus-wasm/lus/wasm/dist/lus.wasm release/lus.wasm
 
       - name: Create unstable release
         run: |

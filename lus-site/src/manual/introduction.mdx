@@ -1,0 +1,30 @@
+---
+order: 1
+title: Introduction
+---
+
+Lus is a small, productive programming language derived from Lua. It's not meant to follow the latest trends in programming language theory, but to iterate on the minimalism and ease of use of Lua so that it can better solve real-world problems.
+
+It is a _superset_ of Lua, meaning that most Lua code is also valid Lus code. Seasoned Lua programmers should be able to pick up Lus easily and make use of its benefits right away. However, unlike most other language supersets, Lus has its own runtime and standard library, so it is a complete language in its own right.
+
+Lus is a personal project of [Louka Ménard Blondin](https://louka.sh) and is maintained on a best-effort basis.
+
+## Goals
+
+These are the design goals of Lus that guide the language's development.
+
+- **Boring is good.** The language should not implement every new trend in programming language theory. It should be small, predictable, and easy to work with while remaining extensible.
+
+- **Solve real-world problems.** The language must be oriented towards productivity and not just theoretical purity. This implies strong Socratic questioning of every proposed modification to determine their usefulness and value.
+
+- **Sovereignty.** The language should be reasonably usable on its own without dependence on third-party runtimes or libraries. The standard library must be greatly extended from Lua's core library to provide a complete language.
+
+- **Minimalism.** Lus should retain Lua's ease of adoption, with concise and readable syntax. Syntactic additions should fit naturally into the language, and existing syntax should not be changed unless absolutely necessary.
+
+- **Strong release enginering.** The language should have stable, well-tested releases and not be in a constant state of flux. This means not being afraid of waiting long periods of time between releases.
+
+The following are **non-goals** of Lus.
+
+- **Strong typing.** The language should remain appreciative of Lua's strict adherence to dynamic typing. Virtually all other derivatives of Lua add strong typing features, which are distracting and detrimental to the language's productivity.
+
+- **Modules.** The language should not introduce modules, which are an anti-pattern imported from JavaScript. Instead, it should rely on the existing require-based loader system to load code. This means no import/export functionality.

@@ -9,4 +9,12 @@ const news = defineCollection({
   loader: glob({ base: "./src/news/", pattern: "*.md" }),
 })
 
-export const collections = { news }
+const manual = defineCollection({
+  schema: z.object({
+    title: z.string(),
+    order: z.number(),
+  }),
+  loader: glob({ base: "./src/manual/", pattern: "*.mdx" }),
+})
+
+export const collections = { news, manual }

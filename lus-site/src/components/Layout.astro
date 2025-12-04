@@ -7,6 +7,11 @@ import "@fontsource-variable/atkinson-hyperlegible-mono/wght-italic.css"
 
 import "../styles/global.css"
 import logo from "../assets/logo.svg"
+
+interface Props {
+  redirect?: string
+  title?: string
+}
 ---
 
 <html lang="en">
@@ -38,6 +43,12 @@ import logo from "../assets/logo.svg"
       content="A small, fast, and reliable programming language."
     />
     <meta name="twitter:image" content="https://lus.dev/banner.png" />
+
+    {
+      Astro.props.redirect && (
+        <meta http-equiv="refresh" content={`0;url=${Astro.props.redirect}`} />
+      )
+    }
 
     <title>Lus{Astro.props.title && ` - ${Astro.props.title}`}</title>
   </head>

@@ -1,0 +1,49 @@
+---
+import Layout from "../../components/Layout.astro"
+import { getCollection, getEntry, render } from "astro:content"
+
+export async function getStaticPaths() {
+  const manual = await getCollection("manual")
+  return manual.map((page) => ({
+    params: { id: page.id },
+    props: { page },
+  }))
+}
+
+const manual = await getCollection("manual")
+const page = await getEntry("manual", Astro.params.id!)!
+const rendered = await render(page)
+---
+
+<Layout title={page.data.title}>
+  <main>
+    <section class="flex gap-2">
+      <aside>
+        {
+          manual.map((page) => (
+            <a href={`/manual/${page.id}`}>{page.data.title}</a>
+          ))
+        }
+      </aside>
+      <article class="flex-1 min-w-0">
+        <h1>{page.data.title}</h1>
+        <rendered.Content />
+      </article>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  @reference "../../styles/global.css";
+
+  article {
+    @apply space-y-2;
+  }
+
+  aside {
+    @apply min-w-48 w-1/4;
+    a {
+      @apply block;
+    }
+  }
+</style>
