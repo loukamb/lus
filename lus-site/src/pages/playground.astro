@@ -1,40 +1,33 @@
 ---
-import Layout from "../components/Layout.astro"
+import PlaygroundLayout from "../components/PlaygroundLayout.astro"
 ---
 
-<Layout title="Playground">
-  <main class="min-h-[80vh] h-[80vh]">
-    <div class="playground-page">
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <button id="run-btn" disabled>Run</button>
-          <button id="clear-btn">Clear</button>
-        </div>
-        <div class="toolbar-right">
-          <select id="version-select" disabled>
-            <option value="">Loading...</option>
-          </select>
-          <span id="version-tag"></span>
-        </div>
-      </div>
-      <div class="editor-container">
-        <div class="editor-pane">
-          <textarea
-            id="code-editor"
-            spellcheck="false"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="off"
-            placeholder="-- Write your Lus code here..."></textarea>
-        </div>
-        <div class="output-pane">
-          <div class="output-header">Output</div>
-          <div class="output-content" id="output"></div>
-        </div>
-      </div>
-    </div>
-  </main>
-</Layout>
+<PlaygroundLayout>
+  <button slot="controls" id="run-btn" class="btn-run" disabled>Run</button>
+  <button slot="controls" id="clear-btn" class="btn-clear">Clear</button>
+
+  <Fragment slot="version">
+    <select id="version-select" class="version-select" disabled>
+      <option value="">Loading...</option>
+    </select>
+    <span id="version-tag"></span>
+  </Fragment>
+
+  <div class="pane editor-pane">
+    <div class="pane-header">Code</div>
+    <textarea
+      id="code-editor"
+      spellcheck="false"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      placeholder="-- Write your Lus code here..."></textarea>
+  </div>
+  <div class="pane output-pane">
+    <div class="pane-header">Output</div>
+    <div class="output-content" id="output"></div>
+  </div>
+</PlaygroundLayout>
 
 <script>
   import { getWasmReleases, loadLusWasm } from "../lib/wasm-loader"
@@ -112,7 +105,6 @@ import Layout from "../components/Layout.astro"
     }
   }
 
-  // Initialize
   async function init() {
     try {
       releases = await getWasmReleases()
@@ -149,7 +141,6 @@ import Layout from "../components/Layout.astro"
     }
   }
 
-  // Event handlers
   runBtn.addEventListener("click", runCode)
   clearBtn.addEventListener("click", clearOutput)
 
@@ -158,7 +149,6 @@ import Layout from "../components/Layout.astro"
       e.preventDefault()
       runCode()
     }
-    // Handle Tab for indentation
     if (e.key === "Tab") {
       e.preventDefault()
       const start = codeEditor.selectionStart
@@ -179,52 +169,26 @@ import Layout from "../components/Layout.astro"
     }
   })
 
-  // Load example code
   codeEditor.value = `print("Hello, Lus!")`
-
   init()
 </script>
 
 <style>
   @reference "../styles/global.css";
 
-  .playground-page {
-    @apply flex flex-col flex-1 h-full min-h-full;
-  }
-
-  .toolbar {
-    @apply flex items-center justify-between px-4 py-2 bg-lime-900 border-b border-lime-700;
-  }
-
-  .toolbar-left {
-    @apply flex items-center gap-2;
-  }
-
-  .toolbar-right {
-    @apply flex items-center gap-2;
-  }
-
-  .toolbar button {
-    @apply px-4 py-1.5 font-bold text-sm cursor-pointer;
+  .btn-run {
+    @apply px-4 py-1.5 font-bold text-sm cursor-pointer bg-lime-500 text-lime-950 hover:bg-lime-400;
 
     &:disabled {
-      @apply opacity-50 cursor-not-allowed;
+      @apply opacity-50 cursor-not-allowed hover:bg-lime-500;
     }
   }
 
-  #run-btn {
-    @apply bg-lime-500 text-lime-950 hover:bg-lime-400;
-
-    &:disabled {
-      @apply hover:bg-lime-500;
-    }
+  .btn-clear {
+    @apply px-4 py-1.5 font-bold text-sm cursor-pointer bg-lime-800 text-lime-200 hover:bg-lime-700;
   }
 
-  #clear-btn {
-    @apply bg-lime-800 text-lime-200 hover:bg-lime-700;
-  }
-
-  .toolbar select {
+  .version-select {
     @apply bg-lime-800 text-lime-200 border border-lime-600 px-2 py-1.5 text-sm cursor-pointer;
 
     &:disabled {
@@ -235,27 +199,25 @@ import Layout from "../components/Layout.astro"
   .tag {
     @apply px-2 py-0.5 text-xs font-bold uppercase;
 
-    &.stable {
+    &:global(.stable) {
       @apply bg-lime-600 text-lime-950;
     }
 
-    &.unstable {
+    &:global(.unstable) {
       @apply bg-red-600 text-red-100;
     }
   }
 
-  .editor-container {
-    @apply flex flex-col flex-1 min-h-0;
+  .pane {
+    @apply flex-1 flex flex-col min-h-0 min-w-0;
   }
 
-  @media (min-width: 768px) {
-    .editor-container {
-      @apply flex-row;
-    }
+  .pane-header {
+    @apply px-4 py-2 bg-lime-900 text-lime-400 text-sm font-bold uppercase tracking-wide border-b border-lime-700 shrink-0;
   }
 
   .editor-pane {
-    @apply flex-1 min-h-0 flex flex-col;
+    @apply border-r border-lime-700;
   }
 
   #code-editor {
@@ -264,27 +226,18 @@ import Layout from "../components/Layout.astro"
     tab-size: 2;
   }
 
-  .output-pane {
-    @apply flex flex-col bg-lime-950 border-t border-lime-700;
-    @apply min-h-48 md:min-h-0 md:w-96 md:border-t-0 md:border-l;
-  }
-
-  .output-header {
-    @apply px-4 py-2 bg-lime-900 text-lime-400 text-sm font-bold uppercase tracking-wide border-b border-lime-700;
-  }
-
   .output-content {
-    @apply flex-1 overflow-y-auto p-4 font-mono text-sm min-h-32;
+    @apply flex-1 overflow-y-auto p-4 font-mono text-sm;
   }
 
   :global(.output-line) {
     @apply whitespace-pre-wrap break-all text-lime-100;
 
-    &.system {
+    &:global(.system) {
       @apply text-lime-400 italic;
     }
 
-    &.error {
+    &:global(.error) {
       @apply text-red-400;
     }
   }

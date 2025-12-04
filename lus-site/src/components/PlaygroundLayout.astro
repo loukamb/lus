@@ -1,0 +1,87 @@
+---
+import { Image } from "astro:assets"
+import "@fontsource-variable/atkinson-hyperlegible-next"
+import "@fontsource-variable/atkinson-hyperlegible-next/wght-italic.css"
+import "@fontsource-variable/atkinson-hyperlegible-mono"
+import "@fontsource-variable/atkinson-hyperlegible-mono/wght-italic.css"
+
+import "../styles/global.css"
+import logo from "../assets/logo.svg"
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta
+      name="description"
+      content="Try Lus in your browser — a small, fast, and reliable programming language."
+    />
+    <meta name="author" content="Louka Ménard Blondin" />
+    <meta property="og:title" content="Lus Playground" />
+    <meta
+      property="og:description"
+      content="Try Lus in your browser — a small, fast, and reliable programming language."
+    />
+    <meta property="og:image" content="https://lus.dev/banner.png" />
+    <meta property="og:url" content="https://lus.dev/playground" />
+    <meta property="og:type" content="website" />
+    <title>Lus - Playground</title>
+  </head>
+  <body class="playground-body">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <a href="/" class="logo-link">
+          <Image src={logo} alt="Lus" width={32} height={32} />
+        </a>
+        <a href="/" class="back-link">← Back</a>
+        <div class="separator"></div>
+        <slot name="controls" />
+      </div>
+      <div class="toolbar-right">
+        <slot name="version" />
+      </div>
+    </div>
+    <div class="editor-container">
+      <slot />
+    </div>
+  </body>
+</html>
+
+<style>
+  @reference "../styles/global.css";
+
+  .playground-body {
+    @apply h-screen w-screen overflow-hidden flex flex-col bg-lime-950 m-0 p-0;
+  }
+
+  .toolbar {
+    @apply flex items-center justify-between px-4 py-2 bg-lime-900 border-b border-lime-700 shrink-0;
+  }
+
+  .toolbar-left {
+    @apply flex items-center gap-3;
+  }
+
+  .toolbar-right {
+    @apply flex items-center gap-2;
+  }
+
+  .logo-link {
+    @apply flex items-center;
+  }
+
+  .back-link {
+    @apply text-lime-300 text-sm font-normal no-underline hover:text-lime-100;
+  }
+
+  .separator {
+    @apply w-px h-6 bg-lime-700;
+  }
+
+  .editor-container {
+    @apply flex flex-1 min-h-0;
+  }
+</style>
+
