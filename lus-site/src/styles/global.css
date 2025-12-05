@@ -44,9 +44,9 @@ section {
   }
 
   pre {
-    @apply mt-4;
+    @apply my-4;
     code {
-      @apply block overflow-x-scroll bg-white p-4;
+      @apply block overflow-x-scroll bg-white p-4 border border-lime-300;
     }
   }
 }
@@ -57,4 +57,8 @@ ul {
 
 li {
   @apply list-item;
+}
+
+blockquote {
+  @apply border bg-lime-100 border-lime-300 p-4 text-lime-700;
 }

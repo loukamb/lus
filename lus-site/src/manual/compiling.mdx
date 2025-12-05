@@ -1,0 +1,28 @@
+---
+order: 3
+title: Compiling Lus
+---
+
+Compiling Lus is a straightforward process. You will need the following tools to compile the runtime:
+
+- The Lus source code, which can be downloaded from its [repository](https://github.com/loukamb/lus).
+- A C compiler ([gcc](https://gcc.gnu.org/) or [clang](https://clang.llvm.org/) recommended).
+- The [Meson build system](https://mesonbuild.com/).
+
+After downloading and extracting the source code, navigate to the `/lus` directory and run the following commands to prepare, compile, and execute the runtime:
+
+```bash
+meson setup build
+meson compile -C build
+
+# On macOS and Linux.
+./build/lus
+
+# On Windows.
+build\lus.exe
+```
+
+The binary will be placed in the `build` directory and is ready to be used without any further configuration. Generally, you will want to place it in a directory that is in your system's `PATH` so you can invoke it from the command line anywhere:
+
+- On macOS and Linux, you can place it in the `/usr/local/bin` directory.
+- On Windows, you should create a new directory for Lus and [follow these instructions](<https://learn.microsoft.com/en-us/previous-versions/office/developer/sharepoint-2010/ee537574(v=office.14)#to-add-a-path-to-the-path-environment-variable>) to add it to your system's `PATH`.
