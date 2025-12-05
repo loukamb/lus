@@ -27,6 +27,18 @@ const rendered = await render(page)
       </aside>
       <article class="flex-1 min-w-0">
         <h1>{page.data.title}</h1>
+        {
+          rendered.headings.length > 0 && (
+            <div class="toc">
+              {rendered.headings.map((heading, i) => (
+                <>
+                  {i > 0 ? "· " : ""}
+                  <a href={`#${heading.slug}`}>{heading.text}</a>
+                </>
+              ))}
+            </div>
+          )
+        }
         <rendered.Content />
       </article>
     </section>
@@ -44,6 +56,13 @@ const rendered = await render(page)
     @apply min-w-48 w-1/6;
     a {
       @apply block;
+    }
+  }
+
+  .toc {
+    @apply text-lime-700 mb-4;
+    a {
+      @apply font-normal no-underline hover:bg-lime-200 lowercase;
     }
   }
 </style>

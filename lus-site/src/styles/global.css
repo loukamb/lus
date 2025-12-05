@@ -10,7 +10,7 @@
 }
 
 body {
-  @apply font-sans text-lime-950 bg-lime-50;
+  @apply font-sans text-lime-950 bg-lime-50 min-h-screen flex flex-col;
 }
 
 main {
@@ -19,21 +19,6 @@ main {
 
 a {
   @apply underline hover:no-underline text-lime-700 font-bold;
-}
-
-header {
-  @apply container mx-auto px-8 pt-4 flex items-end gap-4;
-
-  nav {
-    @apply text-lime-700;
-    a {
-      @apply font-normal no-underline hover:bg-lime-200;
-    }
-  }
-}
-
-footer {
-  @apply container mx-auto px-8 pt-4 flex items-end gap-4 text-lime-800 opacity-80 text-sm italic;
 }
 
 section {
