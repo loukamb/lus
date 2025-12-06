@@ -9,7 +9,12 @@ import DownloadIcon from "../components/icons/Download.astro"
 import { getAllReleases } from "../lib/release"
 
 const { stable, unstable } = await getAllReleases()
-const news = await getCollection("news")
+const allNews = await getCollection("news")
+const news = allNews
+  .toSorted(
+    (a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime(),
+  )
+  .slice(0, 5)
 ---
 
 <Layout>
@@ -74,10 +79,10 @@ const news = await getCollection("news")
       <h1>News</h1>
       <ul>
         {
-          news.map((news) => (
+          news.map((item) => (
             <li>
-              {news.data.date} -{" "}
-              <a href={`/news/${news.id}`}>{news.data.title}</a>
+              {item.data.date} -{" "}
+              <a href={`/news/${item.id}`}>{item.data.title}</a>
             </li>
           ))
         }

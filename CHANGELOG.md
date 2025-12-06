@@ -1,5 +1,11 @@
 # Changelog
 
+## Lus 1.1.0
+
+**Release date:** December 6, 2025
+
+- Added `tojson` and `fromjson` functions for JSON serialization and deserialization.
+
 ## Lus 1.0.0
 
 **Release date:** December 5, 2025
@@ -17,9 +23,3 @@
 - Added pre-built test suites in four harnesses.
 - Removed `pcall` and `xpcall` in favor of `catch`.
 - Upgraded the build system from `make` to `meson`.
-
-## Lus 1.1.0 (**WIP**)
-
-**Release date:** TBD
-
-- Added `tojson` and `fromjson` functions for JSON serialization and deserialization.
