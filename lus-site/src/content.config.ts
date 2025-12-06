@@ -13,6 +13,7 @@ const manual = defineCollection({
   schema: z.object({
     title: z.string(),
     order: z.number(),
+    acquis: z.boolean().optional(),
   }),
   loader: glob({ base: "./src/manual/", pattern: "*.mdx" }),
 })

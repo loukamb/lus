@@ -1,0 +1,231 @@
+---
+order: 103
+title: Acquis 3 - If-Assignment
+acquis: true
+---
+
+The `if` and `elseif` statements can now include assignments in their conditions. Variables assigned in conditions are scoped to the entire conditional block, including all `elseif` and `else` branches.
+
+## Syntax
+
+Assignments use the `=` operator within the condition:
+
+```lua
+if var = expr then
+    -- var is available here
+end
+
+if a, b, c = expr1, expr2, expr3 then
+    -- all variables available here
+end
+```
+
+The condition is true when **all** assigned values are truthy (not nil or false). If any value is falsy, the condition fails and the next branch executes.
+
+```lua
+if x = 42 then
+    print(x)  -- prints 42
+end
+
+if x = nil then
+    print("never reached")
+else
+    print("x was nil")
+end
+```
+
+## Single variable assignment
+
+The simplest form assigns one value and tests it:
+
+```lua
+local function getData()
+    return { value = 100 }
+end
+
+if data = getData() then
+    print(data.value)  -- 100
+end
+```
+
+This is particularly useful for functions that return nil on failure:
+
+```lua
+local function findUser(id)
+    return users[id]  -- may be nil
+end
+
+if user = findUser(123) then
+    print(user.name)
+else
+    print("User not found")
+end
+```
+
+## Multiple variable assignment
+
+Multiple variables can be assigned and tested simultaneously:
+
+```lua
+if a, b, c = 1, 2, 3 then
+    print(a + b + c)  -- 6
+end
+```
+
+The condition fails if **any** assigned value is falsy:
+
+```lua
+if a, b, c = 1, nil, 3 then
+    print("never reached")  -- b is nil
+elseif d = 4 then
+    print(a, b, c, d)  -- 1, nil, 3, 4
+end
+```
+
+## Variable scoping
+
+Variables declared in conditions persist through all branches:
+
+```lua
+if a = nil then
+    -- a is nil, condition false
+elseif b = nil then
+    -- a and b available, both nil, condition false
+else
+    -- a and b both available here
+    print(a, b)  -- nil, nil
+end
+```
+
+This enables progressive narrowing:
+
+```lua
+if primary = getPrimary() then
+    use(primary)
+elseif secondary = getSecondary() then
+    use(secondary)
+else
+    -- primary and secondary both nil
+    useDefault()
+end
+```
+
+## With multiple return values
+
+Functions returning multiple values work naturally:
+
+```lua
+local function getCoordinates()
+    return 10, 20
+end
+
+if x, y = getCoordinates() then
+    print(x, y)  -- 10, 20
+end
+```
+
+If fewer values are returned than variables, extras become nil and the condition fails:
+
+```lua
+local function getOne()
+    return 100
+end
+
+if a, b = getOne() then
+    print("never reached")  -- b is nil
+end
+```
+
+## With catch expressions
+
+If-assignment composes naturally with `catch`:
+
+```lua
+if ok, result = catch riskyOperation() then
+    print("Success:", result)
+else
+    print("Error:", result)  -- result is the error message
+end
+```
+
+---
+
+## Motivation
+
+Lua does not allow assignments in conditional expressions. Testing a value often requires separate declaration and condition statements.
+
+### Redundant code
+
+A common Lua pattern:
+
+```lua
+-- Lua: separate assignment and test
+local result = compute()
+if result then
+    use(result)
+end
+```
+
+With if-assignment:
+
+```lua
+-- Lus: combined
+if result = compute() then
+    use(result)
+end
+```
+
+### Scoping issues
+
+In Lua, variables declared for conditions pollute the outer scope:
+
+```lua
+-- Lua: result visible after if block
+local result = compute()
+if result then
+    process(result)
+end
+-- result still in scope here
+```
+
+With if-assignment, variables are scoped to the conditional block:
+
+```lua
+-- Lus: result scoped to conditional
+if result = compute() then
+    process(result)
+end
+-- result not visible here
+```
+
+### Multiple fallback patterns
+
+Chained fallbacks are verbose in Lua:
+
+```lua
+-- Lua: verbose fallback chain
+local primary = getPrimary()
+if primary then
+    use(primary)
+else
+    local secondary = getSecondary()
+    if secondary then
+        use(secondary)
+    else
+        useDefault()
+    end
+end
+```
+
+With if-assignment:
+
+```lua
+-- Lus: flat fallback chain
+if primary = getPrimary() then
+    use(primary)
+elseif secondary = getSecondary() then
+    use(secondary)
+else
+    useDefault()
+end
+```

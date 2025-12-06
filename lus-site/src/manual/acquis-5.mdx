@@ -1,0 +1,251 @@
+---
+order: 105
+title: Acquis 5 - Enums
+acquis: true
+---
+
+Enums are first-class values representing named constants. Each enum value is a symbol: it is only equal to other values from the same enum with the same name.
+
+## Syntax
+
+Declare an enum with the `enum ... end` expression:
+
+```lua
+local status = enum
+    pending, active, completed, failed
+end
+```
+
+Values are comma-separated names. The enum expression returns the first value:
+
+```lua
+local color = enum red, green, blue end
+assert(color == color.red)  -- enum equals its first value
+```
+
+## Identity and equality
+
+Enum values are symbols with identity semantics. Values from the same enum with the same name are equal:
+
+```lua
+local e = enum x, y, z end
+assert(e.x == e.x)
+assert(e.y == e.y)
+```
+
+Different values from the same enum are not equal:
+
+```lua
+local e = enum a, b, c end
+assert(e.a ~= e.b)
+assert(e.b ~= e.c)
+```
+
+Values from different enums are never equal, even with the same name:
+
+```lua
+local e1 = enum a, b, c end
+local e2 = enum a, b, c end
+assert(e1.a ~= e2.a)  -- different enums
+assert(e1.b ~= e2.b)
+```
+
+## Indexing
+
+Access enum values by name:
+
+```lua
+local fruit = enum apple, orange, banana end
+local f = fruit.orange
+assert(f == fruit.orange)
+```
+
+Access by 1-based numeric index:
+
+```lua
+local size = enum small, medium, large end
+assert(size[1] == size.small)
+assert(size[2] == size.medium)
+assert(size[3] == size.large)
+```
+
+Any enum value can be indexed to access other values from the same enum:
+
+```lua
+local e = enum x, y, z end
+assert(e.x.y == e.y)      -- name indexing from a value
+assert(e.y.z == e.z)
+assert(e[1][3] == e.z)    -- numeric indexing from a value
+```
+
+## Chained indexing
+
+Values can be chained to navigate the enum:
+
+```lua
+local e = enum a, b, c end
+assert(e.a.b.c == e.c)
+assert(e.c.b.a == e.a)
+```
+
+## Ordering
+
+Enum values can be compared by their position:
+
+```lua
+local priority = enum low, medium, high, critical end
+
+assert(priority.low < priority.medium)
+assert(priority.medium < priority.high)
+assert(priority.high < priority.critical)
+
+assert(priority.critical >= priority.high)
+assert(priority.low <= priority.low)
+```
+
+Ordering uses the declaration position, not the name.
+
+## Numeric conversion
+
+Use `tonumber` to get the 1-based index of an enum value:
+
+```lua
+local state = enum idle, running, paused, stopped end
+
+assert(tonumber(state.idle) == 1)
+assert(tonumber(state.running) == 2)
+assert(tonumber(state.paused) == 3)
+assert(tonumber(state.stopped) == 4)
+```
+
+## Type checking
+
+The `type` function returns `"enum"` for enum values:
+
+```lua
+local e = enum val end
+assert(type(e) == "enum")
+assert(type(e.val) == "enum")
+assert(type(e[1]) == "enum")
+```
+
+## Usage patterns
+
+### As function arguments
+
+```lua
+local mode = enum read, write, append end
+
+local function openFile(path, m)
+    if m == mode.read then
+        -- read logic
+    elseif m == mode.write then
+        -- write logic
+    end
+end
+
+openFile("data.txt", mode.read)
+```
+
+### As table values
+
+```lua
+local status = enum pending, approved, rejected end
+
+local requests = {
+    { id = 1, status = status.approved },
+    { id = 2, status = status.pending },
+}
+
+for _, req in ipairs(requests) do
+    if req.status == status.approved then
+        process(req)
+    end
+end
+```
+
+### As function returns
+
+```lua
+local result = enum success, failure, timeout end
+
+local function fetch(url)
+    -- ...
+    return result.success
+end
+
+if fetch("https://example.com") == result.success then
+    print("Request succeeded")
+end
+```
+
+---
+
+## Motivation
+
+Lua does not have a built-in enum type. Developers simulate enums using tables or string constants, but these approaches lack type safety.
+
+### String constants
+
+A common Lua pattern:
+
+```lua
+-- Lua: string constants
+local STATUS_PENDING = "pending"
+local STATUS_ACTIVE = "active"
+
+local function setStatus(s)
+    if s == STATUS_PENDING then
+        -- ...
+    end
+end
+
+setStatus("pending")  -- works
+setStatus("penidng")  -- typo: no error, just wrong
+```
+
+With enums, typos cause immediate errors:
+
+```lua
+-- Lus: type-safe enums
+local status = enum pending, active end
+
+setStatus(status.pending)  -- works
+setStatus(status.penidng)  -- error: nil field
+```
+
+### Numeric constants
+
+Another Lua pattern:
+
+```lua
+-- Lua: numeric constants
+local RED, GREEN, BLUE = 1, 2, 3
+
+if color == RED then  -- is this a color or a count?
+```
+
+Enums are distinct types, preventing confusion:
+
+```lua
+-- Lus: enums are symbols
+local color = enum red, green, blue end
+local count = 1
+
+assert(color.red ~= count)  -- never equal
+```
+
+### Cross-enum safety
+
+Different enums are incompatible:
+
+```lua
+local status = enum ok, error end
+local color = enum red, green end
+
+-- Same position (1), but never equal
+assert(tonumber(status.ok) == tonumber(color.red))
+assert(status.ok ~= color.red)
+```
+
+This prevents accidentally mixing unrelated constants.

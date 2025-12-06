@@ -1,0 +1,188 @@
+---
+order: 102
+title: Acquis 2 - Optional Chaining
+acquis: true
+---
+
+The `?` suffix operator enables safe navigation through potentially nil values. If the value before `?` is falsy (nil or false), subsequent suffix operations short-circuit and return the falsy value instead of raising an error.
+
+## Syntax
+
+The `?` operator is placed after any expression and before a suffix operation:
+
+```lua
+expr?.field    -- field access
+expr?[key]     -- index access
+expr?:method() -- method call
+expr?()        -- function call
+```
+
+When the expression is truthy, operations proceed normally. When the expression is falsy, the entire chain returns the falsy value without evaluating further.
+
+```lua
+local t = { a = { b = 42 } }
+assert(t?.a?.b == 42)           -- normal access
+
+local n = nil
+assert(n?.a?.b?.c == nil)       -- short-circuits at nil
+```
+
+## Field access
+
+The most common use is safely accessing fields that may not exist:
+
+```lua
+local config = { database = { host = "localhost" } }
+
+-- Without optional chaining: verbose nil checks
+local host = config and config.database and config.database.host
+
+-- With optional chaining: concise
+local host = config?.database?.host
+```
+
+Missing fields return nil without error:
+
+```lua
+local t = { a = {} }
+local x = t?.a?.missing?.deep?.field
+assert(x == nil)  -- no error
+```
+
+## Index access
+
+The `?` operator works with bracket notation for dynamic keys:
+
+```lua
+local data = { items = { { name = "first" }, { name = "second" } } }
+assert(data?.items?[2]?.name == "second")
+
+local key = "items"
+assert(data?[key]?[1]?.name == "first")
+```
+
+When the base is nil, indexing short-circuits:
+
+```lua
+local t = nil
+assert(t?[1] == nil)    -- no error
+assert(t?["key"] == nil)
+```
+
+## Method calls
+
+Methods can be safely called on potentially nil objects:
+
+```lua
+local obj = {
+    value = 42,
+    getValue = function(self) return self.value end
+}
+assert(obj?:getValue() == 42)
+
+local missing = nil
+assert(missing?:getValue() == nil)  -- no error
+```
+
+## Function calls
+
+When a value might be a function or nil, `?()` provides safe invocation:
+
+```lua
+local callbacks = { onSuccess = function() return "done" end }
+
+assert(callbacks.onSuccess?() == "done")
+assert(callbacks.onFailure?() == nil)  -- nil, not an error
+```
+
+## False preservation
+
+Unlike nil, `false` short-circuits but preserves its value:
+
+```lua
+local flag = false
+assert(flag?.field == false)  -- returns false, not nil
+```
+
+## Chaining behavior
+
+Multiple `?` operators can be chained. The first falsy value terminates the chain:
+
+```lua
+local t = { a = { b = nil } }
+assert(t?.a?.b?.c?.d == nil)  -- stops at b
+
+local t2 = nil
+assert(t2?.a?.b?.c?.d?.e?.f == nil)  -- stops immediately
+```
+
+The `?` operator only affects suffix operations that follow it. Regular operations still apply:
+
+```lua
+local t = nil
+local x = t?.value or "default"
+assert(x == "default")  -- nil or "default" = "default"
+```
+
+---
+
+## Motivation
+
+Lua does not have a built-in optional chaining operator. Accessing nested values safely requires explicit nil checks at each level.
+
+### Verbose nil checking
+
+Consider accessing a deeply nested configuration value:
+
+```lua
+-- Lua: explicit nil checks
+local value
+if config ~= nil then
+    if config.server ~= nil then
+        if config.server.timeout ~= nil then
+            value = config.server.timeout
+        end
+    end
+end
+```
+
+This pattern is verbose and error-prone. With optional chaining:
+
+```lua
+-- Lus: concise navigation
+local value = config?.server?.timeout
+```
+
+### Conditional expressions
+
+The common Lua idiom using `and` chains is verbose:
+
+```lua
+-- Lua: and-chain pattern
+local port = server and server.config and server.config.port or 8080
+```
+
+With optional chaining:
+
+```lua
+-- Lus: cleaner with or-default
+local port = server?.config?.port or 8080
+```
+
+### Method safety
+
+Calling methods on potentially nil objects requires guards:
+
+```lua
+-- Lua: guarded method call
+if obj ~= nil then
+    obj:process()
+end
+```
+
+With optional chaining:
+
+```lua
+-- Lus: inline safety
+obj?:process()
+```

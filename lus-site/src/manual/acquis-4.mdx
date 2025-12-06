@@ -1,0 +1,207 @@
+---
+order: 104
+title: Acquis 4 - Table Destructuring
+acquis: true
+---
+
+The `from` keyword enables table destructuring, extracting fields into variables based on their names. This provides a concise alternative to manually accessing each field.
+
+## Syntax
+
+The `from` keyword follows a variable list and precedes a table expression:
+
+```lua
+local a, b, c from table_expr
+```
+
+This is equivalent to:
+
+```lua
+local a, b, c = table_expr.a, table_expr.b, table_expr.c
+```
+
+The variable names determine which fields are extracted. The table expression is evaluated once.
+
+## Local destructuring
+
+Declare local variables and extract matching fields:
+
+```lua
+local t = { x = 10, y = 20, z = 30 }
+local x, y, z from t
+assert(x == 10 and y == 20 and z == 30)
+```
+
+Variables can be listed in any order:
+
+```lua
+local t = { a = 1, b = 2, c = 3 }
+local c, a from t  -- order doesn't match table
+assert(a == 1 and c == 3)
+```
+
+## Global destructuring
+
+Use `global` for global variable declarations:
+
+```lua
+local t = { config = "default", timeout = 30 }
+global config, timeout from t
+assert(_G.config == "default")
+assert(_G.timeout == 30)
+```
+
+## Bare assignment
+
+Existing variables can be assigned using bare destructuring:
+
+```lua
+local x, y
+local t = { x = 100, y = 200 }
+x, y from t
+assert(x == 100 and y == 200)
+```
+
+This is useful for reassignment:
+
+```lua
+local x, y = 0, 0
+local t1 = { x = 1, y = 1 }
+local t2 = { x = 2, y = 2 }
+
+x, y from t1
+assert(x == 1 and y == 1)
+
+x, y from t2
+assert(x == 2 and y == 2)
+```
+
+## Missing fields
+
+Fields that don't exist in the table become nil:
+
+```lua
+local t = { a = 1 }
+local a, b, c from t
+assert(a == 1)
+assert(b == nil and c == nil)
+```
+
+## Nested tables
+
+Destructuring works with nested table access:
+
+```lua
+local outer = { inner = { value = 42 } }
+local value from outer.inner
+assert(value == 42)
+```
+
+## Function return values
+
+Destructure directly from function calls:
+
+```lua
+local function getConfig()
+    return { host = "localhost", port = 8080 }
+end
+
+local host, port from getConfig()
+assert(host == "localhost" and port == 8080)
+```
+
+The function is called once, even when extracting multiple fields:
+
+```lua
+local callCount = 0
+local function counted()
+    callCount = callCount + 1
+    return { a = callCount, b = callCount }
+end
+
+local a, b from counted()
+assert(callCount == 1)  -- called once
+assert(a == 1 and b == 1)
+```
+
+## Conditional expressions
+
+Destructure from conditional table expressions:
+
+```lua
+local useDefaults = false
+local defaults = { size = 10 }
+local custom = { size = 50 }
+
+local size from (useDefaults and defaults or custom)
+assert(size == 50)
+```
+
+---
+
+## Motivation
+
+Lua does not have table destructuring. Extracting multiple fields requires repetitive access expressions.
+
+### Repetitive field access
+
+A common Lua pattern:
+
+```lua
+-- Lua: manual field extraction
+local t = { name = "test", value = 42, enabled = true }
+local name = t.name
+local value = t.value
+local enabled = t.enabled
+```
+
+With `from`:
+
+```lua
+-- Lus: destructuring
+local t = { name = "test", value = 42, enabled = true }
+local name, value, enabled from t
+```
+
+### Function parameter patterns
+
+Extracting options from a configuration table:
+
+```lua
+-- Lua: verbose extraction
+local function configure(options)
+    local host = options.host
+    local port = options.port
+    local timeout = options.timeout
+    -- use host, port, timeout
+end
+```
+
+With `from`:
+
+```lua
+-- Lus: concise extraction
+local function configure(options)
+    local host, port, timeout from options
+    -- use host, port, timeout
+end
+```
+
+### Module imports
+
+Extracting functions from a module:
+
+```lua
+-- Lua: manual extraction
+local module = require("mymodule")
+local func1 = module.func1
+local func2 = module.func2
+local func3 = module.func3
+```
+
+With `from`:
+
+```lua
+-- Lus: destructured import
+local func1, func2, func3 from require("mymodule")
+```

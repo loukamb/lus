@@ -13,16 +13,40 @@ export async function getStaticPaths() {
 const manual = await getCollection("manual")
 const page = await getEntry("manual", Astro.params.id!)!
 const rendered = await render(page)
+
+// Find the next acquis if this page is an acquis
+const acquis = manual
+  .filter((p) => p.data.acquis)
+  .toSorted((a, b) => a.data.order - b.data.order)
+const currentIndex = page.data.acquis
+  ? acquis.findIndex((p) => p.id === page.id)
+  : -1
+const nextAcquis =
+  currentIndex >= 0 && currentIndex < acquis.length - 1
+    ? acquis[currentIndex + 1]
+    : null
 ---
 
 <Layout title={page.data.title}>
   <main>
-    <section class="flex gap-2">
+    <section class="flex gap-8">
       <aside>
         {
           manual
+            .filter((page) => !page.data.acquis)
             .toSorted((a, b) => a.data.order - b.data.order)
             .map((page) => <a href={`/manual/${page.id}`}>{page.data.title}</a>)
+        }
+        {manual.some((page) => page.data.acquis) && <br />}
+        {
+          manual
+            .filter((page) => page.data.acquis)
+            .toSorted((a, b) => a.data.order - b.data.order)
+            .map((page) => (
+              <a class="acquis" href={`/manual/${page.id}`}>
+                {page.data.title}
+              </a>
+            ))
         }
       </aside>
       <article class="flex-1 min-w-0">
@@ -30,16 +54,25 @@ const rendered = await render(page)
         {
           rendered.headings.length > 0 && (
             <div class="toc">
-              {rendered.headings.map((heading, i) => (
-                <>
-                  {i > 0 ? "· " : ""}
-                  <a href={`#${heading.slug}`}>{heading.text}</a>
-                </>
-              ))}
+              {rendered.headings
+                .filter((heading) => heading.depth <= 2)
+                .map((heading, i) => (
+                  <>
+                    {i > 0 ? "· " : ""}
+                    <a href={`#${heading.slug}`}>{heading.text}</a>
+                  </>
+                ))}
             </div>
           )
         }
         <rendered.Content />
+        {
+          nextAcquis && (
+            <nav class="next-acquis">
+              <a href={`/manual/${nextAcquis.id}`}>{nextAcquis.data.title} →</a>
+            </nav>
+          )
+        }
       </article>
     </section>
   </main>
@@ -47,6 +80,10 @@ const rendered = await render(page)
 
 <style>
   @reference "../../styles/global.css";
+
+  :global(hr) {
+    @apply my-4 text-lime-800;
+  }
 
   article {
     @apply space-y-2;
@@ -56,6 +93,10 @@ const rendered = await render(page)
     @apply min-w-48 w-1/6;
     a {
       @apply block;
+
+      &.acquis {
+        @apply bg-lime-200 text-xs font-mono;
+      }
     }
   }
 
@@ -63,6 +104,13 @@ const rendered = await render(page)
     @apply text-lime-700 mb-4;
     a {
       @apply font-normal no-underline hover:bg-lime-200 lowercase;
+    }
+  }
+
+  .next-acquis {
+    @apply font-mono;
+    a {
+      @apply text-lime-700 hover:text-lime-900 no-underline hover:bg-lime-200;
     }
   }
 </style>

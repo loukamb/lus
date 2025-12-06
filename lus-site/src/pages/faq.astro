@@ -9,8 +9,11 @@ import Layout from "../components/Layout.astro"
       <br />
       <h2>What is Lus?</h2>
       <p>
-        Lus is a small, fast, and reliable programming language derived from
-        Lua.
+        Lus (<i>pronounced /luːs/</i>) is a small, fast, and reliable
+        programming language that is sovereign. It should be be familiar to the
+        Lua programmer and quite easy to adopt in both small and large projects.
+        Usefulness is prioritized above all else, and barriers to productivity
+        are dismantled whenever found.
       </p>
       <h2>Why make Lus?</h2>
       <p>
@@ -30,6 +33,160 @@ import Layout from "../components/Layout.astro"
         the language or are pre-processors that compile to Lua. I am interested
         in neither of these approaches.
       </p>
+      <p>
+        Also, I needed a language to implement my upcoming Linux distribution's
+        package manager, and I was interested in writing it in Lua, but the
+        language's limitations made it a less than ideal choice and that
+        coloured my inspiration to create Lus.
+      </p>
+      <h2>Why not make another transcompiler?</h2>
+      <p>
+        Every single dialect of Lua I have had the displeasure of learning about
+        has been a source-to-source compiler, or a "transcompiler", or a
+        "transpiler" depending on the level of linguistic diminution people have
+        been woefully diseased with. I even worked on one myself when I
+        halfheartedly attempted to extend Lua's syntax years ago with JSX syntax
+        for web applications, even though I didn't want to and found
+        transcompilation to be a limiting investment that seriously restricts
+        what you can do with the language.
+      </p>
+      <p>
+        Lus exists as a rejection of these transcompilers, not because they're
+        useless (<i
+          >as transcompilation is deplorably your only option when you're
+          targeting programs using embedded Lua</i
+        >), but because they are constrainted and therefore incapable of
+        maturing into a <i>sovereign</i> language.
+      </p>
+      <p id="sovereignty">
+        <i>Language sovereignty</i> is defined by me to be the agency expressed by
+        the language–agency in its implementation (<i
+          >is the language limited by the runtime environment it is embedded in?</i
+        >), agency in its use (<i
+          >do you often have to use third-party libraries to do anything useful?</i
+        >), and agency in its adoption (<i
+          >does it require a great mental effort to learn and use the language?</i
+        >).
+      </p>
+      <p>
+        Lus exists to be a sovereign language. Its predecessor, Lua, is anything <i
+          >but</i
+        > sovereign because of its extremely limited standard library, its dependence
+        on third-party libraries to accomplish just about anything you'd want in
+        application software, and arguably, its evolution which shows and permits
+        none of this. If I were to implement Lus as yet another source-to-source
+        compiler targeting Lua, I would still be restricted by Lua's absurdly nonexistent
+        sovereignty, and therefore I wouldn't be capable of developing Lus as the
+        language runtime it is meant to be.
+      </p>
+      <h2>Why not add strong typing?</h2>
+      <p>
+        I've always found strong typing in Lua dialects quite distracting. There
+        are many horror stories out there of statistically significant
+        productivity losses in languages that were designed as supersets of
+        otherwise weakly typed languages, especially in the web application
+        space. Certain projects (e.g., <a
+          href="https://devclass.com/2023/05/11/typescript-is-not-worth-it-for-developing-libraries-says-svelte-author-as-team-switches-to-javascript-and-jsdoc/"
+          >Svelte</a
+        >) outright abandoned strongly-typed language supersets in favor of
+        in-comment type annotations for very similar reasons.
+      </p>
+      <p>
+        The problem is not with strong typing specifically, as some
+        strongly-typed languages are indeed very productive. The problem lies in
+        adopting strong typing <i>within</i> dynamically typed languages. You have
+        to re-wire your brain to think of types in an environment where they used
+        not to exist, and this is made worse when this type system is <i
+          >inconsistently</i
+        > applied, leading to code that is sometimes type-checked and sometimes not.
+        If two code files are the same, but one will be compiled, analyzed, or interpreted
+        differently because of type settings possibly set elsewhere, then you have
+        a problem. Sometimes, the inconsistency is within the same file, with lines
+        opting out of type-checking with comments, annotations, or the infamous universal
+        <code>any</code> type.
+      </p>
+      <p>
+        Therefore, I have decided to forever bar strong typing in Lus. While I
+        optimistically cite objectively-sounding arguments against strong typing
+        to help justify this decision to others, I am not an authority on the
+        subject, I am not a statistician, and this decision has been made mostly
+        as a personal preference.
+      </p>
+      <h2>Why fork Lua instead of writing your own runtime?</h2>
+      <p>
+        Lus should be able to replace–more in the sense of an <i>upgrade</i> than
+        a substitute–Lua in existing programs. A separate implementation of Lus,
+        predictably for the adoption of another, potentially safer composition language,
+        would entail having to emulate the ABI that Lua provides, and this is always
+        dirty work. The natural contemporary contender for replacement language is
+        Rust, and with the <i>entire</i> runtime with each of its functions requiring
+        to be made available to other programs as a library, I wouldn't be able to
+        experience many of Rust's great safety benefits. Ease of adoption is also
+        a design goal of Lus, and I don't want other programs to add a Rust toolchain
+        to their existing build process just to upgrade to Lus.
+      </p>
+      <p>
+        Also, there is a tinge of laziness in me, and since Lus is a superset of
+        Lua, I would say that most of the work is already done for me, I just
+        need to <i>fork</i> it and build on top of it.
+      </p>
+      <h2>Why a BDFL? Why is development so centralized?</h2>
+      <p>
+        Lus is a personal project, which I started developing for my personal
+        goals, mainly for the implementation of a Linux package manager. I think
+        of the many problems I face while using Lua and then change it. This is
+        perhaps the foremost driver of development in this project. It naturally
+        follows that I have no interest in letting others make design decisions
+        for me, mainly because <i>your</i> problems may not be <i>my</i> problems.
+        I'm sure the aforementioned <i>strong typing</i> is a good example of this.
+        If it happens that my problems are also your problems, then good; enjoy the
+        language.
+      </p>
+      <p>
+        However, this does not mean that I don't care about other people using
+        Lus. I <i>do</i> want to make a good language that's used by others for their
+        programs, and I <i>will</i> advocate for its use as a competent replacement
+        for Lua. I dedicated this project to <a
+          href="/manual/introduction#dedication">Napoleon</a
+        > because I want to be "one of the greats", as Timothée Chalamet once humbly
+        expressed. I will not, however, let the burdensome bureaucracy of community
+        direction hamper what needs to be a carefully designed language, yet one
+        that <i>can</i> be developed expeditiously. If you want to meaningfully contribute
+        to Lus, then submit bugfixes, optimizations, and test cases. Feature requests
+        will be heavily scrutinized and most likely rejected.
+      </p>
+      <p>
+        Of course, I may change this at any given time and decide one day that
+        the project requires an organization with more people to manage it. None
+        of this is set in stone, but this is how I feel at the moment. Do not
+        expect this to change. And in the end, this is a 0-clause BSD licensed
+        project, so you can do whatever you want with it on your own if you want
+        to.
+      </p>
+      <h2>
+        Lus is licensed under the 0-clause BSD license. What does this imply?
+      </h2>
+      <p>
+        The 0-clause BSD license is essentially a <i>do anything you want</i> license.
+        You are not required to include the license in your software and you can
+        even leave my copyright notice out. I use this license as a more legally
+        binding equivalent for the public domain, with most of my projects being
+        dedicated to the public domain. I do not care about license restrictions
+        for the software I write (<i
+          >but I do care heavily about the licenses of the software I use, which
+          is why I prefer all my software libre!</i
+        >)
+      </p>
+      <p>
+        However, Lua is licensed under the MIT license, so if you plan on
+        forking Lus, then you must include <i>their</i>
+        copyright notice in your product or documentation. Said copyright notice
+        is as follows:
+      </p>
+      <code class="block bg-white p-4">
+        Copyright © 1994–2025 Lua.org, PUC-Rio.
+      </code>
+      <p>Evidently, update the year to the current year as needed.</p>
     </section>
   </main>
 </Layout>

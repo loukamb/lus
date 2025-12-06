@@ -1,0 +1,145 @@
+---
+order: 101
+title: Acquis 1 - Catch
+acquis: true
+---
+
+The `catch` expression evaluates any expression in protected mode and returns a boolean success flag alongside the result of the expression or an error message.
+
+## Syntax
+
+The `catch` keyword is followed by any expression:
+
+```lua
+local success,  ... = catch <expression>
+```
+
+When the expression evaluates successfully, `success` is `true` and `...` contains the value of the expression. When the expression raises an error, `success` is `false` and `...` is instead the error message.
+
+```lua
+-- Successful evaluation
+local ok, val = catch 1 + 2
+assert(ok == true)
+assert(val == 3)
+
+-- Error during evaluation
+local ok, err = catch 1 + "a"
+assert(ok == false)
+assert(type(err) == "string")  -- error message
+```
+
+## Return values
+
+The `catch` expression always returns at least a boolean status, and either the results or error message. When you only need to know whether an expression succeeded, you can ignore the second value:
+
+```lua
+local ok = catch someRiskyOperation()
+if not ok then
+  -- handle error without needing the message
+end
+```
+
+This pattern is particularly useful for assertions when testing error conditions:
+
+```lua
+-- Assert that an operation fails
+assert(not catch type())           -- type() with no args errors
+assert(not catch coroutine.yield()) -- yield outside coroutine errors
+```
+
+## Function calls
+
+The most common use case is catching errors from function calls:
+
+```lua
+local ok, result = catch require("no-such-module")
+if not ok then
+  print("Module not found: " .. result)
+end
+
+local ok, data = catch load(someCode)
+if ok then
+  data()  -- execute the loaded chunk
+end
+```
+
+## Composition with other Lus features
+
+### With if-assignment
+
+The `catch` expression integrates naturally with Lus's if-assignment syntax:
+
+```lua
+if ok, val = catch someOperation() then
+  print("Success:", val)
+else
+  print("Failed:", val)  -- val contains error message here
+end
+```
+
+---
+
+## Motivation
+
+Lua's error handling primitives, `pcall` and `xpcall`, operate at the function level. This design has several limitations that become apparent in real-world code.
+
+### The anonymous function problem
+
+To protect a single expression, Lua requires wrapping it in an anonymous function:
+
+```lua
+-- Lua: protecting a single operation
+local ok, result = pcall(function()
+  return someValue + otherValue
+end)
+```
+
+This boilerplate obscures the intent and adds cognitive overhead. With `catch`, the same operation is direct:
+
+```lua
+-- Lus: direct expression protection
+local ok, result = catch someValue + otherValue
+```
+
+### Dependency on the global library
+
+`pcall` and `xpcall` are global functions, meaning code that uses protected execution depends on the global environment. Sandboxed or restricted environments may not expose these functions, leaving code unable to handle errors gracefully.
+
+The `catch` keyword is a language construct, not a library function. It works in any environment regardless of what globals are available.
+
+### Verbose error checking patterns
+
+Common Lua patterns for error checking become verbose:
+
+```lua
+-- Lua: checking if an operation would fail
+local ok = pcall(function() type() end)
+if not ok then
+  print("type() requires an argument")
+end
+```
+
+With `catch`, this becomes natural:
+
+```lua
+-- Lus: concise error checking
+if not catch type() then
+  print("type() requires an argument")
+end
+```
+
+### Testing error conditions
+
+Test suites frequently need to verify that operations fail as expected. The Lua pattern requires nested function calls:
+
+```lua
+-- Lua: asserting an error
+assert(not pcall(function() error("expected") end))
+```
+
+With `catch`, assertions about errors read more naturally:
+
+```lua
+-- Lus: asserting an error
+assert(not catch error("expected"))
+```

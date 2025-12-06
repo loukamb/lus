@@ -1,0 +1,11 @@
+---
+order: 100
+title: Acquis 0
+acquis: true
+---
+
+> Acquis 0 is not an actual acquis, but rather the initial state of the language at the moment of its fork from Lua 5.5 RC 2. Since there aren't any changes to the language, this page serves as an explanation of what an acquis is.
+
+_Acquis_ are the accumulated changes and additions to the language. They are formally defined in advance and implemented incrementally, with _dependency acquis_ implemented first so that other acquis can build upon them. Evolving the language through _acquis_ allows for a delineated, documentable progression of the language across time. For those familiar with the term, _acquis_ are functionally similar to _RFCs_, but there aren't any actual requests for comments and it is more of a means of documenting and studying future changes to the language. 
+
+Not all changes necessarily go through an acquis. Bugfixes, test cases, and minor changes are often implemented directly. An acquis is mostly useful when drafting technically complex additions to the language that requires careful advance study, especially as it relates to preserving the minimalism of the language's semantics or increasing the size of the runtime. Generally, when something requires the integration of an external library, an acquis is necessary.
