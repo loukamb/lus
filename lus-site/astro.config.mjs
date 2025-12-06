@@ -5,14 +5,15 @@ import tailwindcss from "@tailwindcss/vite"
 
 import mdx from "@astrojs/mdx"
 
+import sitemap from "@astrojs/sitemap";
+
 // https://astro.build/config
 export default defineConfig({
   output: "static",
-
+  site: "https://lus.dev",
   vite: {
     plugins: [tailwindcss()],
   },
-
   markdown: {
     shikiConfig: {
       themes: {
@@ -21,6 +22,5 @@ export default defineConfig({
       },
     },
   },
-
-  integrations: [mdx()],
+  integrations: [mdx(), sitemap()],
 })
