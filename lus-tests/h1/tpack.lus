@@ -1,0 +1,89 @@
+global print, require, assert, type, string, math, table, ipairs, pcall, error
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("tpack")
+
+local pack = string.pack
+local packsize = string.packsize
+local unpack = string.unpack
+
+tests:it("basic sizes", function()
+    assert(packsize("b") == 1)
+    assert(packsize("B") == 1)
+    assert(packsize("h") >= 2)
+    assert(packsize("H") >= 2)
+    assert(packsize("i") >= 4)
+    assert(packsize("I") >= 4)
+    assert(packsize("l") >= 8)
+    assert(packsize("L") >= 8)
+end)
+
+tests:it("basic packing integers", function()
+    local s = pack("b", 0x55)
+    assert(#s == 1)
+    assert(unpack("b", s) == 0x55)
+    
+    local s2 = pack("i", 123456)
+    assert(unpack("i", s2) == 123456)
+    
+    -- signed vs unsigned
+    local s3 = pack("b", -1)
+    assert(unpack("b", s3) == -1)
+    local s4 = pack("B", 255)
+    assert(unpack("B", s4) == 255)
+end)
+
+tests:it("multiple values", function()
+    local s = pack("iii", 1, 2, 3)
+    local a, b, c = unpack("iii", s)
+    assert(a == 1 and b == 2 and c == 3)
+end)
+
+tests:it("endianness", function()
+    local s = pack("<i4", 1)
+    assert(s == "\x01\x00\x00\x00")
+    local s2 = pack(">i4", 1)
+    assert(s2 == "\x00\x00\x00\x01")
+end)
+
+tests:it("string packing - z", function()
+    local s = pack("z", "hello")
+    assert(s == "hello\0")
+    assert(unpack("z", s) == "hello")
+end)
+
+tests:it("string packing - fixed size", function()
+    local s = pack("c5", "hello")
+    assert(s == "hello")
+    assert(unpack("c5", s) == "hello")
+    
+    -- shorter string gets padded with nulls
+    local s2 = pack("c5", "hi")
+    assert(#s2 == 5)
+    assert(unpack("c5", s2) == "hi\0\0\0")
+end)
+
+tests:it("float packing", function()
+    local s = pack("f", 1.5)
+    assert(math.abs(unpack("f", s) - 1.5) < 0.0001)
+    
+    local s2 = pack("d", 3.14159265358979)
+    assert(math.abs(unpack("d", s2) - 3.14159265358979) < 0.0000001)
+end)
+
+tests:it("alignment", function()
+    local s = pack("!4 i2 i4", 1, 1)
+    -- i2 is 2 bytes. i4 needs 4-byte align. So 2 padding bytes.
+    assert(#s == 8)
+end)
+
+tests:it("position return", function()
+    local s = pack("iii", 10, 20, 30)
+    local a, pos = unpack("i", s)
+    assert(a == 10)
+    local b, pos2 = unpack("i", s, pos)
+    assert(b == 20)
+end)
+
+tests:finish()
+

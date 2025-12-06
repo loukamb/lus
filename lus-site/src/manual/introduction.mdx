@@ -3,6 +3,9 @@ order: 1
 title: Introduction
 ---
 
+import { Image } from "astro:assets"
+import Napoleon from "../assets/napoleon.jpg"
+
 Lus is a small, productive programming language derived from Lua. It's not meant to follow the latest trends in programming language theory, but to iterate on the minimalism and ease of use of Lua so that it can better solve real-world problems.
 
 It is a _superset_ of Lua, meaning that most Lua code is also valid Lus code. Seasoned Lua programmers should be able to pick up Lus easily and make use of its benefits right away. However, unlike most other language supersets, Lus has its own runtime and standard library, so it is a complete language in its own right.
@@ -28,3 +31,9 @@ The following are **non-goals** of Lus.
 - **Strong typing.** The language should remain appreciative of Lua's strict adherence to dynamic typing. Virtually all other derivatives of Lua add strong typing features, which are distracting and detrimental to the language's productivity.
 
 - **Modules.** The language should not introduce modules, which are an anti-pattern imported from JavaScript. Instead, it should rely on the existing require-based loader system to load code. This means no import/export functionality.
+
+## Dedication
+
+This project is dedicated to Napoléon Bonaparte, Emperor of the French. Paraphrasing François-René de Chateaubriand's [Mémoires d’Outre-Tombe](https://www.gutenberg.org/files/18864/18864-h/18864-h.htm): _"The world belongs to Bonaparte; the living Napoleon has been buried under the glory of the dead Napoleon."_ I aspire to achieve at least one thousandth of this man's greatness, and at most one hundredth.
+
+<Image src={Napoleon} alt="Napoléon Bonaparte" width={200} />

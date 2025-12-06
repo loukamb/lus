@@ -1,0 +1,200 @@
+global print, require, string, math, assert, package, pairs, ipairs, type, error, _G, table, load, tostring, tonumber, select, rawset
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("math")
+local math = math
+local string = string
+
+-- Helper variables and functions from original test
+local minint, maxint = math.mininteger, math.maxinteger
+local intbits = math.floor(math.log(maxint, 2) + 0.5) + 1
+local floatbits = 24
+do
+  local p = 2.0^floatbits
+  while p < p + 1.0 do
+    p = p * 2.0
+    floatbits = floatbits + 1
+  end
+end
+
+local maxexp = 0
+do
+  local p = 2.0
+  while p < math.huge do
+    maxexp = maxexp + 1
+    p = p + p
+  end
+end
+
+local function isNaN (x)
+  return (x ~= x)
+end
+
+local function checkerror (msg, f, ...)
+  -- Use catch with closure
+  local args = {...}
+  local success, err = catch (function() return f(table.unpack(args)) end)()
+  assert(not success and string.find(err, msg))
+end
+
+local msgf2i = "number.* has no integer representation"
+
+local function eq (a,b,limit)
+  if not limit then
+    if floatbits >= 50 then limit = 1E-11
+    else limit = 1E-5
+    end
+  end
+  return a == b or math.abs(a-b) <= limit
+end
+
+local function eqT (a,b)
+  return a == b and math.type(a) == math.type(b)
+end
+
+-- Tests wrapped in it blocks
+tests:it("basic limits and types", function()
+    assert((1 << intbits) == 0)
+    assert(minint == 1 << (intbits - 1))
+    assert(maxint == minint - 1)
+    
+    assert(isNaN(0/0))
+    assert(not isNaN(1/0))
+    
+    local x = 2.0^floatbits
+    assert(x > x - 1.0 and x == x + 1.0)
+    
+    assert(math.type(0) == "integer" and math.type(0.0) == "float"
+           and not math.type("10"))
+end)
+
+tests:it("basic float notation and equality", function()
+    assert(0e12 == 0 and .0 == 0 and 0. == 0 and .2e2 == 20 and 2.E-1 == 0.2)
+    local a,b,c = "2", " 3e0 ", " 10  "
+    assert(a+b == 5 and -b == -3 and b+"2" == 5 and "10"-c == 0)
+    assert(type(a) == 'string' and type(b) == 'string' and type(c) == 'string')
+    assert(a == "2" and b == " 3e0 " and c == " 10  " and -c == -"  10 ")
+    assert(c%a == 0 and a^b == 08)
+    a = 0
+    assert(a == -a and 0 == -0)
+    
+    local x = -1
+    local mz = 0/x   -- minus zero
+end)
+
+tests:it("math.modf", function()
+  local a,b = math.modf(3.5)
+  assert(a == 3.0 and b == 0.5)
+  a,b = math.modf(-2.5)
+  assert(a == -2.0 and b == -0.5)
+  a,b = math.modf(-3e23)
+  assert(a == -3e23 and b == 0.0)
+  a,b = math.modf(3e35)
+  assert(a == 3e35 and b == 0.0)
+  a,b = math.modf(-1/0)   -- -inf
+  assert(a == -1/0 and b == 0.0)
+  a,b = math.modf(1/0)   -- inf
+  assert(a == 1/0 and b == 0.0)
+  a,b = math.modf(0/0)   -- NaN
+  assert(isNaN(a) and isNaN(b))
+  a,b = math.modf(3)  -- integer argument
+  assert(eqT(a, 3) and eqT(b, 0.0))
+  a,b = math.modf(minint)
+  assert(eqT(a, minint) and eqT(b, 0.0))
+end)
+
+tests:it("floor division and conversions", function()
+    assert(1//0.0 == 1/0)
+    assert(-1 // 0.0 == -1/0)
+    assert(eqT(3.5 // 1.5, 2.0))
+    assert(eqT(3.5 // -1.5, -3.0))
+
+    local x, y 
+    x = 1; assert(x // 0.0 == 1/0)
+    x = 1.0; assert(x // 0 == 1/0)
+    x = 3.5; assert(eqT(x // 1, 3.0))
+    assert(eqT(x // -1, -4.0))
+
+    assert(maxint // maxint == 1)
+    assert(maxint // 1 == maxint)
+    assert(minint // minint == 1)
+    
+    assert(minint // -1 == -minint)
+    assert(maxint // -1 == -maxint)
+end)
+
+tests:it("comparison floats and integers", function()
+    assert(maxint + 0.0 == 2.0^(intbits - 1) - 1.0)
+    assert(minint + 0.0 == minint)
+    
+    assert(1 < 1.1); assert(not (1 < 0.9))
+    assert(1 <= 1.1); assert(not (1 <= 0.9))
+    assert(minint <= minint + 0.0)
+    
+    local NaN = 0/0
+    assert(not (NaN < 0))
+    assert(not (NaN > minint))
+    assert(not (NaN < NaN))
+end)
+
+tests:it("compile time errors (load)", function()
+    local function checkcompt (msg, code)
+      checkerror(msg, assert(load(code)))
+    end
+    checkcompt("divide by zero", "return 2 // 0")
+    checkcompt(msgf2i, "return 2.3 >> 0")
+end)
+
+tests:it("tonumber tests", function()
+    assert(tonumber(3.4) == 3.4)
+    assert(eqT(tonumber(3), 3))
+    assert(tonumber("0") == 0)
+    assert(not tonumber(""))
+    assert(not tonumber("  "))
+    assert(tonumber("0xff") == 255)
+    
+    assert(0x10 == 16)
+    assert(tonumber('  -10  ', 36) == -36)
+end)
+
+tests:it("math functions", function()
+    assert(math.abs(-10.43) == 10.43)
+    assert(eq(math.sqrt(10)^2, 10))
+    assert(eq(math.log(2, 2), 1))
+    assert(eq(math.exp(0), 1))
+    
+    assert(eqT(math.floor(3.4), 3))
+    assert(eqT(math.ceil(3.4), 4))
+    assert(eqT(math.floor(-3.4), -4))
+    
+    assert(eqT(math.max(3, 5, 9, 1), 9))
+    assert(eqT(math.min(3, 5, 9, 1), 1))
+end)
+
+tests:it("fmod", function()
+    assert(eqT(math.fmod(minint, minint), 0))
+    checkerror("zero", math.fmod, 3, 0)
+end)
+
+tests:it("tointeger", function()
+    assert(eqT(math.tointeger(minint), minint))
+    assert(eqT(math.tointeger(maxint), maxint))
+    assert(not math.tointeger(0.0 - minint)) -- overflow
+end)
+
+tests:it("random", function()
+    -- Basic random checks
+    local r = math.random()
+    assert(r >= 0 and r < 1)
+    
+    local r2 = math.random(10)
+    assert(r2 >= 1 and r2 <= 10)
+    
+    math.randomseed(100)
+    local a = math.random()
+    math.randomseed(100)
+    local b = math.random()
+    assert(a == b)
+end)
+
+tests:finish()

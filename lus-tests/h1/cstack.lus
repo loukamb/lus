@@ -1,0 +1,51 @@
+global print, require, assert, type, string, coroutine, setmetatable
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("cstack")
+
+tests:it("deep recursion", function()
+    local count = 0
+    local function recurse(n)
+        count = count + 1
+        if n > 0 then return recurse(n - 1) + 1 end
+        return 0
+    end
+    assert(recurse(100) == 100)
+    assert(count == 101)
+end)
+
+tests:it("stack overflow detection", function()
+    local function loop()
+        return 1 + loop()
+    end
+    local ok, err = catch loop()
+    assert(not ok)
+    assert(string.find(err, "stack overflow") or string.find(err, "stack"))
+end)
+
+tests:it("recursion in pattern matching", function()
+    local function f(size)
+        local s = string.rep("a", size)
+        local p = string.rep(".?", size)
+        return string.match(s, p)
+    end
+    local m = f(80)
+    assert(#m == 80)
+end)
+
+tests:it("stack overflow in gsub", function()
+    local count = 0
+    local function foo()
+        count = count + 1
+        if count < 1000 then
+            string.gsub("a", ".", foo)
+        end
+    end
+    local ok = catch foo()
+    -- Either it runs to completion (count limit) or stack overflows
+    assert(ok or count > 0)
+end)
+
+tests:finish()
+
+

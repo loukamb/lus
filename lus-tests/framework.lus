@@ -1,0 +1,110 @@
+global print, tostring, type, string, table, io, os, setmetatable, error, collectgarbage
+
+local framework = {}
+framework.__index = framework
+
+-- Colors for output
+local red = "\27[31m"
+local green = "\27[32m"
+local reset = "\27[0m"
+
+-- tracegc functionality (from tracegc.lua)
+local tracegc = {}
+local tracegc_active = false
+local tracegc_mt = {}
+function tracegc_mt.__gc(o)
+    io.stderr:write'.'    -- mark progress
+    if tracegc_active then
+        setmetatable(o, tracegc_mt)   -- remark object for finalization
+    end
+end
+
+function tracegc.start()
+    if not tracegc_active then
+        tracegc_active = true
+        setmetatable({}, tracegc_mt)    -- create initial object
+    end
+end
+
+function tracegc.stop()
+    if tracegc_active then
+        tracegc_active = false
+        collectgarbage()   -- call finalizer for the last time
+    end
+end
+
+framework.tracegc = tracegc
+
+function framework.new(name)
+    local self = setmetatable({}, framework)
+    self.name = name
+    self.tests = 0
+    self.passed = 0
+    self.failed = 0
+    print("Running Suite: " .. name)
+    return self
+end
+
+function framework:describe(desc)
+    print("  context: " .. desc)
+end
+
+function framework:it(desc, fn)
+    self.tests = self.tests + 1
+    local status, err = catch fn()
+    if status then
+        self.passed = self.passed + 1
+        print("    " .. green .. "✓" .. reset .. " " .. desc)
+    else
+        self.failed = self.failed + 1
+        print("    " .. red .. "✗" .. reset .. " " .. desc)
+        print("      Error: " .. tostring(err))
+    end
+end
+
+function framework:expect(value)
+    return {
+        to_be = function(expected)
+            if value ~= expected then
+                error("Expected " .. tostring(expected) .. " but got " .. tostring(value))
+            end
+        end,
+        not_to_be = function(expected)
+            if value == expected then
+                error("Expected not " .. tostring(expected) .. " but got it")
+            end
+        end,
+        to_equal = function(expected) -- simplified equality
+             if value ~= expected then
+                error("Expected " .. tostring(expected) .. " but got " .. tostring(value))
+            end
+        end
+    }
+end
+
+function framework:assert_true(value, msg)
+    if not value then
+        error(msg or "Assertion failed: expected true")
+    end
+end
+
+function framework:assert_equal(actual, expected, msg)
+    if actual ~= expected then
+        error(msg or ("Expected " .. tostring(expected) .. ", got " .. tostring(actual)))
+    end
+end
+
+function framework:finish()
+    print("")
+    print(string.format("Result: %d/%d passed", self.passed, self.tests))
+    if self.failed > 0 then
+        print(red .. "FAILED" .. reset)
+        os.exit(1)
+    else
+        print(green .. "PASSED" .. reset)
+        os.exit(0)
+    end
+end
+
+return framework
+

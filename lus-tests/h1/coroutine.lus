@@ -1,0 +1,282 @@
+global print, require, assert, type, coroutine, table, string, error, setmetatable, _G, pairs, ipairs, tostring, math, os, debug, collectgarbage, xpcall
+
+local framework = require("lus-tests.framework")
+local debug = require'debug'
+local tests = framework.new("coroutine")
+
+local function eqtab (t1, t2)
+  assert(#t1 == #t2)
+  for i = 1, #t1 do
+    local v = t1[i]
+    assert(t2[i] == v)
+  end
+end
+
+local function func2close (f)
+  return setmetatable({}, {__close = f})
+end
+
+tests:it("basics", function()
+    local main, ismain = coroutine.running()
+    assert(type(main) == "thread" and ismain)
+    assert(not coroutine.resume(main))
+    assert(not coroutine.isyieldable(main) and not coroutine.isyieldable())
+    assert(not (catch coroutine.yield()))
+end)
+
+tests:it("trivial errors", function()
+    assert(not (catch coroutine.resume(0)))
+    assert(not (catch coroutine.status(0)))
+end)
+
+tests:it("multiple yield/resume args", function()
+    _G.x = nil
+    _G.f = nil
+    local function foo (a, ...)
+      local x, y = coroutine.running()
+      assert(x == _G.f and y == false)
+      assert(coroutine.resume(_G.f) == false)
+      assert(coroutine.status(_G.f) == "running")
+      local arg = {...}
+      assert(coroutine.isyieldable(x))
+      for i=1,#arg do
+        _G.x = {coroutine.yield(table.unpack(arg[i]))}
+      end
+      return table.unpack(a)
+    end
+    
+    _G.f = coroutine.create(foo)
+    assert(coroutine.isyieldable(_G.f))
+    assert(type(_G.f) == "thread" and coroutine.status(_G.f) == "suspended")
+    assert(string.find(tostring(_G.f), "thread"))
+    local s,a,b,c,d
+    s,a,b,c,d = coroutine.resume(_G.f, {1,2,3}, {}, {1}, {'a', 'b', 'c'})
+    assert(coroutine.isyieldable(_G.f))
+    assert(s and a == nil and coroutine.status(_G.f) == "suspended")
+    s,a,b,c,d = coroutine.resume(_G.f)
+    eqtab(_G.x, {})
+    assert(s and a == 1 and b == nil)
+    assert(coroutine.isyieldable(_G.f))
+    s,a,b,c,d = coroutine.resume(_G.f, 1, 2, 3)
+    eqtab(_G.x, {1, 2, 3})
+    assert(s and a == 'a' and b == 'b' and c == 'c' and d == nil)
+    s,a,b,c,d = coroutine.resume(_G.f, "xuxu")
+    eqtab(_G.x, {"xuxu"})
+    assert(s and a == 1 and b == 2 and c == 3 and d == nil)
+    assert(coroutine.status(_G.f) == "dead")
+    s, a = coroutine.resume(_G.f, "xuxu")
+    assert(not s and string.find(a, "dead") and coroutine.status(_G.f) == "dead")
+    
+    _G.f = nil
+    _G.x = nil
+end)
+
+tests:it("yields in tail calls", function()
+    _G.x = nil
+    local function foo (i) return coroutine.yield(i) end
+    local f = coroutine.wrap(function ()
+      for i=1,10 do
+        assert(foo(i) == _G.x)
+      end
+      return 'a'
+    end)
+    for i=1,10 do _G.x = i; assert(f(i) == i) end
+    _G.x = 'xuxu'; assert(f('xuxu') == 'a')
+    _G.x = nil
+end)
+
+tests:it("recursive coroutines", function()
+    local function pf (n, i)
+      coroutine.yield(n)
+      pf(n*i, i+1)
+    end
+    
+    local f = coroutine.wrap(pf)
+    local s=1
+    for i=1,10 do
+      assert(f(1, 1) == s)
+      s = s*i
+    end
+end)
+
+tests:it("sieve of eratosthenes", function()
+    local function gen (n)
+      return coroutine.wrap(function ()
+        for i=2,n do coroutine.yield(i) end
+      end)
+    end
+
+    local function filter (p, g)
+      return coroutine.wrap(function ()
+        while 1 do
+          local n = g()
+          if n == nil then return end
+          if math.fmod(n, p) ~= 0 then coroutine.yield(n) end
+        end
+      end)
+    end
+
+    local x = gen(80)
+    local a = {}
+    while 1 do
+      local n = x()
+      if n == nil then break end
+      table.insert(a, n)
+      x = filter(n, x)
+    end
+
+    assert(#a == 22 and a[#a] == 79)
+end)
+
+tests:it("stack overflow in coroutine", function()
+    local function foo () foo () end    -- just create a stack overflow
+    local co = coroutine.create(foo)
+    local st, msg = coroutine.resume(co)
+    assert(string.find(msg, "stack overflow"))
+    assert(coroutine.status(co) == "dead")
+end)
+
+tests:it("close dead coroutine", function()
+    local co = coroutine.create(print)
+    assert(coroutine.resume(co, "testing 'coroutine.close'"))
+    assert(coroutine.status(co) == "dead")
+    local st, msg = coroutine.close(co)
+    assert(st and msg == nil)
+    -- also ok to close it again
+    st, msg = coroutine.close(co)
+    assert(st and msg == nil)
+end)
+
+tests:it("cannot close main coroutine", function()
+    local main = coroutine.running()
+    local st, msg = catch coroutine.close(main)
+    assert(not st and string.find(msg, "main"))
+end)
+
+tests:it("to-be-closed in coroutines", function()
+    local X
+    
+    local co = coroutine.create(function ()
+      local x <close> = func2close(function (self, err)
+        assert(err == nil); X = false
+      end)
+      X = true
+      coroutine.yield()
+    end)
+    coroutine.resume(co)
+    assert(X)
+    assert(coroutine.close(co))
+    assert(not X and coroutine.status(co) == "dead")
+end)
+
+tests:it("closing coroutine after error", function()
+    local co = coroutine.create(error)
+    local st, msg = coroutine.resume(co, 100)
+    assert(not st and msg == 100)
+    st, msg = coroutine.close(co)
+    assert(not st and msg == 100)
+    -- after closing, no more errors
+    st, msg = coroutine.close(co)
+    assert(st and msg == nil)
+end)
+
+tests:it("coroutines x for loop", function()
+    local function all (a, n, k)
+      if k == 0 then coroutine.yield(a)
+      else
+        for i=1,n do
+          a[k] = i
+          all(a, n, k-1)
+        end
+      end
+    end
+    
+    local a = 0
+    for t in coroutine.wrap(function () all({}, 5, 4) end) do
+      a = a+1
+    end
+    assert(a == 5^4)
+end)
+
+tests:it("old bug: attempt to resume itself", function()
+    local function co_func (current_co)
+      assert(coroutine.running() == current_co)
+      assert(coroutine.resume(current_co) == false)
+      coroutine.yield(10, 20)
+      assert(coroutine.resume(current_co) == false)
+      coroutine.yield(23)
+      return 10
+    end
+    
+    local co = coroutine.create(co_func)
+    local a,b,c = coroutine.resume(co, co)
+    assert(a == true and b == 10 and c == 20)
+    a,b = coroutine.resume(co, co)
+    assert(a == true and b == 23)
+    a,b = coroutine.resume(co, co)
+    assert(a == true and b == 10)
+    assert(coroutine.resume(co, co) == false)
+    assert(coroutine.resume(co, co) == false)
+end)
+
+tests:it("attempt to resume normal coroutine", function()
+    local co1, co2
+    co1 = coroutine.create(function () return co2() end)
+    co2 = coroutine.wrap(function ()
+            assert(coroutine.status(co1) == 'normal')
+            assert(not coroutine.resume(co1))
+            coroutine.yield(3)
+          end)
+    
+    local a,b = coroutine.resume(co1)
+    assert(a and b == 3)
+    assert(coroutine.status(co1) == 'dead')
+end)
+
+tests:it("infinite recursion of coroutines", function()
+    local a = function(a) coroutine.wrap(a)(a) end
+    assert(not (catch a(a)))
+end)
+
+tests:it("errors in coroutines", function()
+    local function foo ()
+      coroutine.yield(3)
+      error("foo error")
+    end
+    
+    local function goo() foo() end
+    local x = coroutine.wrap(goo)
+    assert(x() == 3)
+    local a,b = catch x()
+    assert(not a)
+    
+    x = coroutine.create(goo)
+    local a,b = coroutine.resume(x)
+    assert(a and b == 3)
+    a,b = coroutine.resume(x)
+    assert(not a and coroutine.status(x) == "dead")
+end)
+
+tests:it("access to locals of collected coroutine", function()
+    local C = {}; setmetatable(C, {__mode = "kv"})
+    local x = coroutine.wrap (function ()
+                local a = 10
+                local function f () a = a+10; return a end
+                while true do
+                  a = a+1
+                  coroutine.yield(f)
+                end
+              end)
+    
+    C[1] = x;
+    
+    local f = x()
+    assert(f() == 21 and x()() == 32 and x() == f)
+    x = nil
+    collectgarbage()
+    assert(C[1] == nil)
+    assert(f() == 43 and f() == 53)
+end)
+
+tests:finish()
+

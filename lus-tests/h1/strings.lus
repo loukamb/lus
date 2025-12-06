@@ -1,0 +1,127 @@
+global print, require, string, math, assert, package, pairs, ipairs, type, error, _G, table, load, tostring, tonumber, select, rawset, os, coroutine
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("strings")
+
+local string = string
+local table = table
+local math = math
+
+local function checkerror (msg, f, ...)
+  local args = {...}
+  local s, err = catch (function() return f(table.unpack(args)) end)()
+  assert(not s and string.find(err, msg))
+end
+
+tests:it("basic string length and concatenation", function()
+    assert("alo" < "alo1")
+    assert("" < "a")
+    assert("alo" > "al")
+    assert("alo" ~= "alo1")
+    assert("alo" ~= nil)
+    assert("alo" ~= 1)
+    
+    assert("alo" .. "123" == "alo123")
+    assert("alo" .. 123 == "alo123")
+    assert(123 .. "alo" == "123alo")
+    assert(123 .. 456 == "123456")
+    
+    assert(string.len("") == 0)
+    assert(string.len("abc") == 3)
+    assert(string.len("123") == 3)
+    
+    assert(string.rep('a', 5) == "aaaaa")
+    assert(string.rep('', 10) == "")
+    assert(string.rep('a', 0) == "")
+    assert(string.rep('a', -1) == "")
+end)
+
+tests:it("string.sub", function()
+    assert(string.sub("123456789", 2, 4) == "234")
+    assert(string.sub("123456789", 7) == "789")
+    assert(string.sub("123456789", 7, 6) == "")
+    assert(string.sub("123456789", 7, 7) == "7")
+    assert(string.sub("123456789", 0, 0) == "")
+    assert(string.sub("123456789", -10, 10) == "123456789")
+    assert(string.sub("123456789", 1, 9) == "123456789")
+    assert(string.sub("123456789", -10, -20) == "")
+    assert(string.sub("123456789", -1) == "9")
+    assert(string.sub("123456789", -4) == "6789")
+    assert(string.sub("123456789", -6, -4) == "456")
+end)
+
+tests:it("string.find", function()
+    assert(string.find("123456789", "345") == 3)
+    local a, b = string.find("123456789", "345")
+    assert(a == 3 and b == 5)
+    
+    assert(string.find("123456789", "346") == nil)
+    assert(string.find("123456789", ".45", 1, true) == nil) -- plain search
+    assert(string.find("123456789", "888", 1, true) == nil)
+    assert(string.find("123456789", "1", 1, true) == 1)
+    
+    assert(string.find("123456789", "", 1) == 1)
+    assert(string.find("123456789", "", 10) == 10)
+end)
+
+tests:it("string.match", function()
+    assert(string.match("123456789", "345") == "345")
+    assert(string.match("123456789", "3(%d)5") == "4")
+    assert(string.match("123456789", "888") == nil)
+end)
+
+tests:it("string.gsub", function()
+    assert(string.gsub("hello world", "(%w+)", "%1 %1") == "hello hello world world")
+    assert(string.gsub("hello world", "%w+", "%0 %0", 1) == "hello hello world")
+    assert(string.gsub("hello world from lua", "%a+", function(w) return string.sub(w, 1, 1) end) == "h w f l")
+end)
+
+tests:it("string.reverse", function()
+    assert(string.reverse("abc") == "cba")
+    assert(string.reverse("") == "")
+    assert(string.reverse("ab") == "ba")
+end)
+
+tests:it("string.unicode", function()
+    -- string.char / string.byte
+    assert(string.byte("a") == 97)
+    assert(string.char(97) == "a")
+    assert(string.byte("abc", 2) == 98)
+    assert(string.byte("abc", 2, 3) == 98) -- returns multiple?
+
+    local a, b = string.byte("abc", 1, 2)
+    assert(a == 97 and b == 98)
+end)
+
+tests:it("string.format", function()
+    assert(string.format("x%u", 10) == "x10")
+    assert(string.format("%d", 123) == "123")
+    assert(string.format("%s", "test") == "test")
+    assert(string.format("%%%d", 10) == "%10")
+    
+    -- basic float formats
+    assert(string.format("%0.2f", 1.234) == "1.23")
+    
+    checkerror("invalid conversion", string.format, "%k", 10)
+    checkerror("invalid conversion", string.format, "%", 10)
+end)
+
+tests:it("table.concat", function()
+    local a = {"a", "b", "c"}
+    assert(table.concat(a) == "abc")
+    assert(table.concat(a, ",") == "a,b,c")
+    assert(table.concat(a, ",", 2) == "b,c")
+    assert(table.concat(a, ",", 2, 2) == "b")
+    assert(table.concat(a, ",", 3, 2) == "")
+    
+    checkerror("table expected", table.concat, 3)
+end)
+
+tests:it("gmatch across coroutines (bug 5.3.2)", function()
+  local f = string.gmatch("1 2 3 4 5", "%d+")
+  assert(f() == "1")
+  local co = coroutine.wrap(f)
+  assert(co() == "2")
+end)
+
+tests:finish()

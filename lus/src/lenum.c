@@ -25,7 +25,7 @@
 ** Create a new EnumRoot with 'size' names.
 ** The names array is uninitialized and should be filled by the caller.
 */
-EnumRoot *luaE_newroot (lua_State *L, int size) {
+EnumRoot *luaE_newroot(lua_State *L, int size) {
   size_t sz = sizeenumroot(size);
   GCObject *o = luaC_newobjdt(L, LUA_VENUMROOT, sz, 0);
   EnumRoot *root = gco2enumroot(o);
@@ -41,7 +41,7 @@ EnumRoot *luaE_newroot (lua_State *L, int size) {
 /*
 ** Create a new Enum value with the given root and 1-based index.
 */
-Enum *luaE_new (lua_State *L, EnumRoot *root, int idx) {
+Enum *luaE_new(lua_State *L, EnumRoot *root, int idx) {
   GCObject *o = luaC_newobj(L, LUA_VENUM, sizeenum);
   Enum *e = gco2enum(o);
   e->root = root;
@@ -54,13 +54,13 @@ Enum *luaE_new (lua_State *L, EnumRoot *root, int idx) {
 ** Look up an enum value by name string.
 ** Returns the 1-based index if found, 0 if not found.
 */
-int luaE_findname (EnumRoot *root, TString *name) {
+int luaE_findname(EnumRoot *root, TString *name) {
   int i;
   for (i = 0; i < root->size; i++) {
-    if (root->names[i] == name)  /* short strings are interned */
-      return i + 1;  /* 1-based index */
+    if (root->names[i] == name) /* short strings are interned */
+      return i + 1;             /* 1-based index */
   }
-  return 0;  /* not found */
+  return 0; /* not found */
 }
 
 
@@ -68,10 +68,10 @@ int luaE_findname (EnumRoot *root, TString *name) {
 ** Get an enum value from the root by string key.
 ** Creates and returns a new Enum value, or returns NULL if key not found.
 */
-Enum *luaE_getbyname (lua_State *L, EnumRoot *root, TString *key) {
+Enum *luaE_getbyname(lua_State *L, EnumRoot *root, TString *key) {
   int idx = luaE_findname(root, key);
   if (idx == 0)
-    return NULL;  /* not found */
+    return NULL; /* not found */
   return luaE_new(L, root, idx);
 }
 
@@ -80,9 +80,9 @@ Enum *luaE_getbyname (lua_State *L, EnumRoot *root, TString *key) {
 ** Get an enum value from the root by integer index.
 ** Creates and returns a new Enum value, or returns NULL if index out of bounds.
 */
-Enum *luaE_getbyidx (lua_State *L, EnumRoot *root, int idx) {
+Enum *luaE_getbyidx(lua_State *L, EnumRoot *root, int idx) {
   if (idx < 1 || idx > root->size)
-    return NULL;  /* out of bounds */
+    return NULL; /* out of bounds */
   return luaE_new(L, root, idx);
 }
 
@@ -90,7 +90,7 @@ Enum *luaE_getbyidx (lua_State *L, EnumRoot *root, int idx) {
 /*
 ** Free an EnumRoot.
 */
-void luaE_freeroot (lua_State *L, EnumRoot *root) {
+void luaE_freeroot(lua_State *L, EnumRoot *root) {
   luaM_freemem(L, root, sizeenumroot(root->size));
 }
 
@@ -98,7 +98,7 @@ void luaE_freeroot (lua_State *L, EnumRoot *root) {
 /*
 ** Free an Enum value.
 */
-void luaE_free (lua_State *L, Enum *e) {
+void luaE_free(lua_State *L, Enum *e) {
   luaM_freemem(L, e, sizeenum);
 }
 
@@ -106,7 +106,6 @@ void luaE_free (lua_State *L, Enum *e) {
 /*
 ** Get the size (in bytes) of an EnumRoot.
 */
-lu_mem luaE_rootsize (EnumRoot *root) {
+lu_mem luaE_rootsize(EnumRoot *root) {
   return cast(lu_mem, sizeenumroot(root->size));
 }
-

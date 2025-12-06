@@ -1,0 +1,116 @@
+global print, require, assert, type, pairs, ipairs, next, table, math, load, string, _G, error, tostring, collectgarbage, rawget, rawset, rawequal, rawlen, setmetatable
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("nextvar")
+
+tests:it("next traversal", function()
+    local a = {}
+    for i=1,100 do a[i] = i end
+    local count = 0
+    for k,v in pairs(a) do count = count + 1 end
+    assert(count == 100)
+end)
+
+tests:it("next manual", function()
+    local t = {a=1, b=2, c=3}
+    local k, v = next(t)
+    assert(k ~= nil and v ~= nil)
+    local count = 0
+    local k = nil
+    repeat
+        k, v = next(t, k)
+        if k then count = count + 1 end
+    until k == nil
+    assert(count == 3)
+end)
+
+tests:it("ipairs basics", function()
+    local t = {10,20,30}
+    local i = 0
+    for k,v in ipairs(t) do
+        i = i + 1
+        assert(k == i and v == k*10)
+    end
+    assert(i == 3)
+end)
+
+tests:it("ipairs stops at nil", function()
+    local t = {1, 2, nil, 4}
+    local count = 0
+    for k, v in ipairs(t) do
+        count = count + 1
+    end
+    assert(count == 2)
+end)
+
+tests:it("table sizes and arrays", function()
+    local a = {}
+    for i=1,100 do a[i] = i end
+    assert(#a == 100)
+    a[101] = 101
+    assert(#a == 101)
+end)
+
+tests:it("table library resizing", function()
+    local a = {1, 2, 3}
+    table.insert(a, 4)
+    assert(#a == 4 and a[4] == 4)
+    table.remove(a, 2)
+    assert(#a == 3 and a[2] == 3)
+end)
+
+tests:it("next with deleted keys", function()
+    local t = {a=1, b=2, c=3}
+    t.b = nil
+    local count = 0
+    for k,v in pairs(t) do count = count + 1 end
+    assert(count == 2)
+end)
+
+tests:it("rawget and rawset", function()
+    local mt = {__index = function() return 99 end}
+    local t = setmetatable({}, mt)
+    assert(t.foo == 99)
+    assert(rawget(t, "foo") == nil)
+    
+    rawset(t, "bar", 42)
+    assert(t.bar == 42)
+    assert(rawget(t, "bar") == 42)
+end)
+
+tests:it("rawequal", function()
+    local a = {}
+    local b = {}
+    local c = a
+    assert(rawequal(a, a))
+    assert(rawequal(a, c))
+    assert(not rawequal(a, b))
+    assert(rawequal(1, 1))
+    assert(not rawequal(1, 2))
+end)
+
+tests:it("rawlen", function()
+    local t = {1, 2, 3, 4, 5}
+    local mt = {__len = function() return 999 end}
+    setmetatable(t, mt)
+    assert(#t == 999)
+    assert(rawlen(t) == 5)
+    assert(rawlen("hello") == 5)
+end)
+
+tests:it("generic for with function", function()
+    local function iter(t, i)
+        i = i + 1
+        if t[i] then return i, t[i] end
+    end
+    
+    local t = {10, 20, 30}
+    local sum = 0
+    for i, v in iter, t, 0 do
+        sum = sum + v
+    end
+    assert(sum == 60)
+end)
+
+tests:finish()
+

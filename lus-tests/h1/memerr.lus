@@ -1,0 +1,136 @@
+global print, require, assert, collectgarbage, string, table, coroutine, setmetatable, load, io, os, type
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("memerr")
+
+tests:it("collect garbage", function()
+    collectgarbage()
+    collectgarbage("collect")
+    assert(collectgarbage("isrunning"))
+end)
+
+tests:it("gc count", function()
+    local before = collectgarbage("count")
+    local t = {}
+    for i = 1, 1000 do t[i] = string.rep("x", 100) end
+    local after = collectgarbage("count")
+    assert(after > before)
+    t = nil
+    collectgarbage()
+    collectgarbage()
+    local final = collectgarbage("count")
+    assert(final < after)
+end)
+
+tests:it("empty table creation", function()
+    local function create()
+        return {}
+    end
+    for i = 1, 100 do
+        local t = create()
+        assert(type(t) == "table")
+    end
+end)
+
+tests:it("string creation", function()
+    local function create()
+        return "XXX" .. "YYY"
+    end
+    for i = 1, 100 do
+        local s = create()
+        assert(s == "XXXYYY")
+    end
+end)
+
+tests:it("coroutine creation", function()
+    local function create()
+        return coroutine.create(print)
+    end
+    for i = 1, 100 do
+        local co = create()
+        assert(type(co) == "thread")
+    end
+    collectgarbage()
+end)
+
+tests:it("to-be-closed variables", function()
+    local flag
+    local function test()
+        local x <close> = setmetatable({}, {__close = function() flag = true end})
+        flag = false
+        local y = {}
+    end
+    test()
+    assert(flag)
+end)
+
+tests:it("gsub memory", function()
+    local function test()
+        local a, b = string.gsub("alo alo", "(a)", function(x) return x..'b' end)
+        return (a == 'ablo ablo')
+    end
+    for i = 1, 100 do
+        assert(test())
+    end
+end)
+
+tests:it("table creation", function()
+    local function test()
+        local a, lim = {}, 10
+        for i=1,lim do a[i] = i; a[i..'a'] = {} end
+        return (type(a[lim..'a']) == 'table' and a[lim] == lim)
+    end
+    for i = 1, 100 do
+        assert(test())
+    end
+end)
+
+tests:it("constructors", function()
+    local function test()
+        local a = {10, 20, 30, 40, 50; a=1, b=2, c=3, d=4, e=5}
+        return (type(a) == 'table' and a.e == 5)
+    end
+    for i = 1, 100 do
+        assert(test())
+    end
+end)
+
+tests:it("closure creation", function()
+    local function close(b)
+        return function(x) return b + x end
+    end
+    for i = 1, 100 do
+        assert(close(2)(4) == 6)
+    end
+end)
+
+tests:it("using coroutines", function()
+    local function test()
+        local a = coroutine.wrap(function()
+            coroutine.yield(string.rep("a", 10))
+            return {}
+        end)
+        assert(string.len(a()) == 10)
+        return a()
+    end
+    for i = 1, 10 do
+        local r = test()
+        assert(type(r) == "table")
+    end
+end)
+
+tests:it("growing stack", function()
+    local function foo(n)
+        if n == 0 then return 1 else return 1 + foo(n - 1) end
+    end
+    assert(foo(100) == 101)
+end)
+
+tests:it("auxiliary buffer", function()
+    local lim = 100
+    local a = {}
+    for i = 1, lim do a[i] = "01234567890123456789" end
+    assert(#table.concat(a, ",") == 20*lim + lim - 1)
+end)
+
+tests:finish()

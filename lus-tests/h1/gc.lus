@@ -1,0 +1,142 @@
+global print, require, assert, type, collectgarbage, setmetatable, getmetatable, tostring, pairs, load, string, math, table, error, _G, next, rawset, coroutine
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("gc")
+
+tests:it("collectgarbage basics", function()
+    assert(collectgarbage("isrunning"))
+    collectgarbage()
+end)
+
+tests:it("gc mode switching", function()
+    local oldmode = collectgarbage("incremental")
+    -- changing modes should return previous mode
+    assert(collectgarbage("generational") == "incremental")
+    assert(collectgarbage("generational") == "generational")
+    assert(collectgarbage("incremental") == "generational")
+    assert(collectgarbage("incremental") == "incremental")
+    collectgarbage(oldmode)
+end)
+
+tests:it("gc with weak tables (k mode)", function()
+    local a = setmetatable({}, {__mode = 'k'})
+    for i=1,10 do a[{}] = i end -- 10 collectable keys
+    collectgarbage()
+    -- keys should be collected
+    local count = 0
+    for k,v in pairs(a) do count = count + 1 end
+    assert(count == 0)
+end)
+
+tests:it("gc with weak tables (v mode)", function()
+    local a = setmetatable({}, {__mode = 'v'})
+    a[1] = string.rep('b', 21)
+    collectgarbage()
+    assert(a[1])   -- strings are *values*
+    a[1] = nil
+    -- values should be collectable
+    for i=1,10 do a[i] = {} end
+    collectgarbage()
+    local count = 0
+    for k,v in pairs(a) do count = count + 1 end
+    assert(count == 0)
+end)
+
+tests:it("gc with weak tables (kv mode)", function()
+    local a = setmetatable({}, {__mode = 'kv'})
+    local x, y, z = {}, {}, {}
+    a[1], a[2], a[3] = x, y, z
+    a[string.rep('$', 11)] = string.rep('$', 11)
+    for i=4,15 do a[i] = {} end
+    for i=1,15 do a[{}] = i end
+    collectgarbage()
+    assert(next(a) ~= nil)
+    local i = 0
+    for k,v in pairs(a) do
+      assert((k == 1 and v == x) or
+             (k == 2 and v == y) or
+             (k == 3 and v == z) or k==v)
+      i = i+1
+    end
+    assert(i == 4)
+    x,y,z=nil,nil,nil
+    collectgarbage()
+    assert(next(a) == string.rep('$', 11))
+end)
+
+tests:it("gc finalizers (__gc)", function()
+    local finished = false
+    local u = setmetatable({}, {__gc = function() finished = true end})
+    u = nil
+    collectgarbage()
+    collectgarbage() 
+    assert(finished)
+end)
+
+tests:it("gc recursive structures", function()
+    local a = {}
+    a.b = {c = a} -- cycle
+    a = nil
+    collectgarbage()
+    -- Simple test is just that it runs without crash
+end)
+
+tests:it("clearing tables", function()
+    local lim = 15
+    local a = {}
+    local b = {}
+    for i=1,lim do a[{}] = i end
+    for k,v in pairs(a) do b[k]=v end
+    for n in pairs(b) do
+      a[n] = nil
+      assert(type(n) == 'table' and next(n) == nil)
+      collectgarbage()
+    end
+    for n in pairs(a) do error'cannot be here' end
+end)
+
+tests:it("GC activation", function()
+    local finish = false
+    local u = setmetatable({}, {__gc = function () finish = true end})
+    local b = {34}
+    repeat u = {} until finish
+    assert(b[1] == 34)   -- 'u' was collected, but 'b' was not
+end)
+
+tests:it("long strings", function()
+    local x = "01234567890123456789012345678901234567890123456789012345678901234567890123456789"
+    assert(string.len(x)==80)
+    local s = ''
+    local k = 100
+    for n = 1, k do s = s..x end
+    assert(string.len(s) == k*80)
+end)
+
+tests:it("self-referenced threads", function()
+    local thread_id = 0
+    local threads = {}
+    
+    local function fn (thread)
+        local x = {}
+        threads[thread_id] = function() thread = x end
+        coroutine.yield()
+    end
+    
+    while thread_id < 10 do
+        local thread = coroutine.create(fn)
+        coroutine.resume(thread, thread)
+        thread_id = thread_id + 1
+    end
+end)
+
+tests:it("gc not reentrant in incremental mode", function()
+    local res = true
+    setmetatable({}, {__gc = function ()
+      res = collectgarbage()
+    end})
+    collectgarbage()
+    assert(not res)
+end)
+
+tests:finish()
+

@@ -1,0 +1,60 @@
+global print, require, assert, type, os, io, string, arg, tostring, collectgarbage, package
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("cli")
+
+local lus_bin = "lus" -- start with assumption
+
+if arg and arg[-1] then
+    -- Try to deduce binary from how we were called
+    lus_bin = arg[-1]
+end
+
+local function run_lus(args)
+    local cmd = lus_bin .. " " .. args
+    local h = io.popen(cmd)
+    local out = h:read("*a")
+    h:close()
+    return out
+end
+
+tests:it("version check (-v)", function()
+    local out = run_lus("-v")
+    assert(string.find(out, "Lus") or string.find(out, "Lua")) -- Depending on branding
+end)
+
+tests:it("execute string (-e)", function()
+    local out = run_lus("-e 'print(10*10)'")
+    -- popen output trailing newline often
+    assert(string.find(out, "100"))
+end)
+
+tests:it("script execution", function()
+    local tmp = os.tmpname()
+    local f = io.open(tmp, "w")
+    f:write("print('hello from file')")
+    f:close()
+    
+    local out = run_lus(tmp)
+    assert(string.find(out, "hello from file"))
+    os.remove(tmp)
+end)
+
+tests:it("stdin execution (-)", function()
+    -- echo "print(123)" | lus -
+    local sep = (package.config:sub(1,1) == "\\") and "&" or ";"
+    local cmd
+    if package.config:sub(1,1) == "\\" then 
+        -- Windows cmd.exe: echo print(123) | lus -
+        cmd = "echo print(123) | " .. lus_bin .. " -"
+    else
+        cmd = "echo \"print(123)\" | " .. lus_bin .. " -"
+    end
+    
+    local h = io.popen(cmd)
+    local out = h:read("*a")
+    h:close()
+    assert(string.find(out, "123"))
+end)
+
+tests:finish()

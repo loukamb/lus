@@ -1,0 +1,18 @@
+global print, io, assert, os
+
+local path = os.tmpname()
+
+-- Write
+local f = assert(io.open(path, "w"))
+f:write("Hello Container")
+f:close()
+
+-- Read
+f = assert(io.open(path, "r"))
+local content = f:read("*a")
+f:close()
+
+assert(content == "Hello Container")
+
+print("H3 IO Test Passed")
+os.remove(path)

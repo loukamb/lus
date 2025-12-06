@@ -1,0 +1,94 @@
+global print, require, assert, type, load, string, table, tostring, pairs, ipairs, _G, os, math, error, tonumber
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("literals")
+
+tests:it("escape sequences", function()
+    assert('\n\"\'\\'  == [[
+
+"'\]])
+    assert(string.find("\a\b\f\n\r\t\v", "^%c%c%c%c%c%c%c$"))
+end)
+
+tests:it("hexadecimal escapes", function()
+    assert("\x00\x05\x10\x1f\x3C\xfF\xe8" == "\0\5\16\31\60\255\232")
+end)
+
+tests:it("unicode escapes", function()
+    assert("\u{0041}" == "A")
+    assert("\u{20AC}" == "€")
+    assert("\u{0}" == "\0")
+end)
+
+tests:it("long strings", function()
+    local b = string.rep("0123456789", 96)
+    assert(string.len(b) == 960)
+    
+    -- nested brackets
+    assert([=[one [[two]] one]=] == 'one [[two]] one')
+    assert([===[one [==[two]==] one]===] == 'one [==[two]==] one')
+end)
+
+tests:it("number literals", function()
+    assert(0xff == 255)
+    assert(0xFF == 255)
+    assert(0x10 == 16)
+    assert(0xABCDEF == 11259375)
+    assert(0e12 == 0)
+    assert(.0 == 0)
+    assert(0. == 0)
+    assert(.2e2 == 20)
+    assert(2.E-1 == 0.2)
+end)
+
+tests:it("hex float literals", function()
+    assert(0x0.1E == 0x1E / 0x100)
+    assert(0x0p10 == 0)
+    assert(0x1p10 == 1024)
+    assert(0x1.0p10 == 1024)
+end)
+
+tests:it("string coercion to number", function()
+    local a,b,c = "2", " 3e0 ", " 10  "
+    assert(a+b == 5 and -b == -3 and b+"2" == 5 and "10"-c == 0)
+    assert(type(a) == 'string' and type(b) == 'string' and type(c) == 'string')
+end)
+
+tests:it("syntax errors in literals", function()
+    local function lexerror (s, err)
+      local ok, st, msg = catch load('return ' .. s, '')
+      if not ok then
+          -- load threw error - that's expected for syntax errors
+          if err then
+             assert(string.find(st, err), "Expected error '"..err.."' in '"..tostring(st).."'")
+          end
+          return
+      end
+      if not st then
+          -- load returned nil, msg
+          if err then
+             assert(string.find(msg, err), "Expected error '"..err.."' in '"..tostring(msg).."'")
+          end
+      end
+    end
+    
+    lexerror("`", "unexpected symbol")
+    lexerror(" ' ", "unfinished string")
+end)
+
+tests:it("decimal point locale", function()
+    if os.setlocale("pt_BR") then
+      assert(tonumber("3,4") == 3.4)
+      assert(tonumber"3.4" == 3.4)
+      os.setlocale("C")
+    end
+end)
+
+tests:it("string length operator", function()
+    assert(#"" == 0)
+    assert(#"hello" == 5)
+    assert(#"€" == 3)  -- UTF-8 encoded euro sign is 3 bytes
+end)
+
+tests:finish()
+

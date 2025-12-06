@@ -32,7 +32,7 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=0:print_stacktrace=1:symbolize=1
           UBSAN_OPTIONS: print_stacktrace=1:symbolize=1
-        run: meson test -C lus/build -v --print-errorlogs
+        run: meson test -C lus/build -v --print-errorlogs --suite h1 --suite h2 --suite h3 --suite h4
 
   linux-glibc:
     name: Linux (glibc)
@@ -55,7 +55,7 @@ jobs:
           meson compile -C build lus:executable
 
       - name: Test
-        run: meson test -C lus/build
+        run: meson test -C lus/build --suite h1 --suite h2 --suite h3-ci --suite h4
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -84,7 +84,8 @@ jobs:
           meson compile -C build lus:executable
 
       - name: Test
-        run: meson test -C lus/build
+        # Skip H3 (Container in Container)
+        run: meson test -C lus/build --suite h1 --suite h2 --suite h4
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -116,7 +117,8 @@ jobs:
           meson compile -C build lus:executable
 
       - name: Test
-        run: meson test -C lus/build
+        # Run all harnesses including H3 (CI mode)
+        run: meson test -C lus/build --suite h1 --suite h2 --suite h3-ci --suite h4
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -143,7 +145,8 @@ jobs:
           meson compile -C build lus:executable
 
       - name: Test
-        run: meson test -C lus/build
+        # Skip H3 on macOS (no default container runtime guaranteed)
+        run: meson test -C lus/build --suite h1 --suite h2 --suite h4
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

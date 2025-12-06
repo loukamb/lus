@@ -1,0 +1,110 @@
+global print, require, assert, type, table, string, math, pairs, setmetatable, getmetatable, collectgarbage, _G, load, coroutine, debug, X, error, xpcall
+
+local framework = require("lus-tests.framework")
+local debug = require"debug"
+local tests = framework.new("big")
+
+tests:it("large table construction via load", function()
+    local lim = 2^18 + 1000
+    local prog = { "local y = {0" }
+    for i = 1, lim do prog[#prog + 1] = i  end
+    prog[#prog + 1] = "}\n"
+    prog[#prog + 1] = "X = y\n"
+    prog[#prog + 1] = ("assert(X[%d] == %d)"):format(lim - 1, lim - 2)
+    prog[#prog + 1] = "return 0"
+    prog = table.concat(prog, ";")
+
+    local env = {string = string, assert = assert}
+    local f = assert(load(prog, nil, nil, env))
+
+    f()
+    assert(env.X[lim] == lim - 1 and env.X[lim + 1] == lim)
+    for k in pairs(env) do env[k] = nil end
+end)
+
+tests:it("metamethod access on large table env", function()
+    local lim = 2^18 + 1000
+    local prog = { "local y = {0" }
+    for i = 1, lim do prog[#prog + 1] = i  end
+    prog[#prog + 1] = "}\n"
+    prog[#prog + 1] = "X = y\n"
+    prog[#prog + 1] = ("assert(X[%d] == %d)"):format(lim - 1, lim - 2)
+    prog[#prog + 1] = "return 0"
+    prog = table.concat(prog, ";")
+    
+    local env = {string = string, assert = assert}
+    local f = assert(load(prog, nil, nil, env))
+    
+    -- Test that metamethods are triggered on env
+    local accesses = {}
+    setmetatable(env, {
+      __index = function (t, n) 
+        accesses[#accesses+1] = {"index", n}
+        return _G[n] 
+      end,
+      __newindex = function (t, n, v) 
+        accesses[#accesses+1] = {"newindex", n}
+        _G[n] = v 
+      end,
+    })
+
+    X = nil
+    f()
+    
+    -- Verify we had accesses through metamethods
+    assert(#accesses > 0)
+    assert(X[lim] == lim - 1 and X[lim + 1] == lim)
+end)
+
+tests:it("errors in accesses larger than K", function()
+    local lim = 2^18 + 1000
+    local prog = { "local y = {0" }
+    for i = 1, lim do prog[#prog + 1] = i  end
+    prog[#prog + 1] = "}\n"
+    prog[#prog + 1] = "X = y\n"
+    prog[#prog + 1] = ("assert(X[%d] == %d)"):format(lim - 1, lim - 2)
+    prog[#prog + 1] = "return 0"
+    prog = table.concat(prog, ";")
+    
+    local env = {string = string, assert = assert}
+    local f = assert(load(prog, nil, nil, env))
+
+    setmetatable(env, {
+        __index = function () end,
+        __newindex = function () end,
+    })
+    
+    local e, m = catch f()
+    assert(not e and m:find("global 'X'"))
+end)
+
+tests:it("errors in metamethods propagate", function()
+    local lim = 2^18 + 1000
+    local prog = { "local y = {0" }
+    for i = 1, lim do prog[#prog + 1] = i  end
+    prog[#prog + 1] = "}\n"
+    prog[#prog + 1] = "X = y\n"
+    prog[#prog + 1] = ("assert(X[%d] == %d)"):format(lim - 1, lim - 2)
+    prog[#prog + 1] = "return 0"
+    prog = table.concat(prog, ";")
+    
+    local env = {string = string, assert = assert}
+    local f = assert(load(prog, nil, nil, env))
+
+    setmetatable(env, {
+        __newindex = function () error("hi") end,
+    })
+    
+    local e, m = catch f()
+    assert(not e and m:find("hi"))
+end)
+
+tests:it("string.rep for reasonable sizes", function()
+    -- We won't actually OOM, just check rep works for reasonably large
+    local s = string.rep("a", 10000)
+    assert(#s == 10000)
+end)
+
+tests:finish()
+
+

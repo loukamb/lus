@@ -1,0 +1,94 @@
+global print, require, assert, type, table, select, next, _G, load, string, pairs, tonumber, error
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("vararg")
+
+tests:it("basic vararg", function()
+    local function f(a, ...)
+        local arg = {...}
+        assert(a == 10)
+        assert(arg[1] == 20)
+        assert(arg[2] == 30)
+        return select("#", ...)
+    end
+    
+    assert(f(10, 20, 30) == 2)
+end)
+
+tests:it("select basics", function()
+    assert(select("#", 1, 2, 3) == 3)
+    assert(select(2, "a", "b", "c") == "b")
+    local a, b = select(-2, 1, 2, 3)
+    assert(a == 2 and b == 3)
+end)
+
+tests:it("select edge cases", function()
+    assert(select(1) == nil)
+    assert(select("#") == 0)
+    local f = select
+    assert(f(1, "a", "b") == "a")
+    assert(f("#", "a", "b") == 2)
+end)
+
+tests:it("table.pack/unpack", function()
+    local t = table.pack(nil, 1, nil)
+    assert(t.n == 3)
+    assert(t[1] == nil and t[2] == 1)
+    
+    local a, b, c = table.unpack(t, 1, t.n)
+    assert(a == nil and b == 1 and c == nil)
+end)
+
+tests:it("vararg expression with nil", function()
+    local function f(...) return select("#", ...) end
+    assert(f(nil, nil) == 2)
+    assert(f() == 0)
+    assert(f(nil) == 1)
+end)
+
+tests:it("forwarding varargs", function()
+    local function g(...) return ... end
+    local function f(...) return g(...) end
+    local a, b = f(10, 20)
+    assert(a == 10 and b == 20)
+end)
+
+tests:it("varargs in closures", function()
+    local function create(...)
+        local args = {...}
+        return function ()
+            return table.unpack(args)
+        end
+    end
+    
+    local f = create(1, 2, 3)
+    local a, b, c = f()
+    assert(a == 1 and b == 2 and c == 3)
+end)
+
+tests:it("vararg call chain", function()
+    local function id(...) return ... end
+    local function passthrough(...) return id(...) end
+    local function collect(...) return {...} end
+    
+    local t = collect(passthrough(1, 2, 3))
+    assert(t[1] == 1 and t[2] == 2 and t[3] == 3)
+end)
+
+tests:it("vararg with multiple returns", function()
+    local function retmany() return 1, 2, 3, 4 end
+    local function f(a, ...)
+        return select("#", ...)
+    end
+    assert(f(retmany()) == 3)
+end)
+
+tests:it("vararg in table constructor", function()
+    local function f(...) return {...} end
+    local t = f(nil, 1, nil, 2)
+    assert(#t >= 2)  -- behavior may vary with trailing nils
+    assert(t[2] == 1 and t[4] == 2)
+end)
+
+tests:finish()
+

@@ -1,0 +1,50 @@
+global print, require, assert, type, io, os, string, tostring, collectgarbage
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("files")
+
+tests:it("io.tempfile", function()
+    local f = io.tmpfile()
+    assert(io.type(f) == "file")
+    f:write("test")
+    f:seek("set", 0)
+    assert(f:read("*a") == "test")
+    f:close()
+end)
+
+tests:it("os.tmpname / io.open", function()
+    local name = os.tmpname()
+    local f = io.open(name, "w")
+    assert(f)
+    f:write("hello")
+    f:close()
+    
+    f = io.open(name, "r")
+    assert(f:read("*a") == "hello")
+    f:close()
+    
+    os.remove(name)
+end)
+
+tests:it("io.popen", function()
+    local cmd = "echo hello"
+    -- On Windows echo is implicit in cmd.exe.
+    local f = io.popen(cmd, "r")
+    assert(f)
+    local s = f:read("*a")
+    -- popen output might contain trailing newline
+    assert(string.find(s, "hello"))
+    f:close()
+end)
+
+tests:it("file:seek", function()
+    local f = io.tmpfile()
+    f:write("1234567890")
+    f:seek("set", 5)
+    assert(f:read(1) == "6")
+    f:seek("end", -2) -- 9
+    assert(f:read(1) == "9")
+    f:close()
+end)
+
+tests:finish()

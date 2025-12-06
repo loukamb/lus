@@ -1,0 +1,11 @@
+-- Fibonacci Benchmark
+
+local function fib(n)
+    if n < 2 then return n end
+    return fib(n - 1) + fib(n - 2)
+end
+
+-- Calculate fib(30)
+-- 30 is small enough to be fast but recursive enough to measure function overhead
+local res = fib(30)
+print("fib(30) = " .. res)

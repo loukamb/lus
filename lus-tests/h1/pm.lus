@@ -1,0 +1,101 @@
+global print, require, assert, type, string, table, utf8, math, tonumber, error, load, pairs, tostring
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("pm")
+
+tests:it("string.find basics", function()
+    local i, e = string.find("hello world", "world")
+    assert(i == 7 and e == 11)
+    assert(string.find("alo123alo", "12") == 4)
+    assert(string.find("hello", "^hello$") == 1)
+    assert(string.find("hello", "^world") == nil)
+end)
+
+tests:it("string.find with patterns", function()
+    assert(string.find("1234", "^%d+$") == 1)
+    assert(string.find("abc", "^%a+$") == 1)
+    assert(not string.find("abc123", "^%a+$"))
+end)
+
+tests:it("string.match captures", function()
+    local s = "hello world"
+    assert(string.match(s, "^hello") == "hello")
+    assert(string.match(s, "world$") == "world")
+    local w1, w2 = string.match(s, "(%w+) (%w+)")
+    assert(w1 == "hello" and w2 == "world")
+end)
+
+tests:it("string.match character classes", function()
+    assert(string.match("user@example.com", "[%w%p]+@[%w%p]+") == "user@example.com")
+    assert(string.match("123", "^%d+$") == "123")
+    assert(string.match("abc", "%a+") == "abc")
+    assert(string.match("hello\nworld", "hello%s+world") == "hello\nworld")
+    assert(string.match("a\tb", "%S+%s+%S+"))
+end)
+
+tests:it("string.gsub basic", function()
+    assert(string.gsub("hello world", "l", "x") == "hexxo worxd")
+    local s, n = string.gsub("aaa", "a", "b")
+    assert(s == "bbb" and n == 3)
+end)
+
+tests:it("string.gsub table replacement", function()
+    local t = {name="Lua", version="5.4"}
+    local res = string.gsub("$name-$version", "$(%w+)", t)
+    assert(res == "Lua-5.4")
+end)
+
+tests:it("string.gsub function replacement", function()
+    local res = string.gsub("hello", "(%w)", function(c)
+        return string.upper(c)
+    end)
+    assert(res == "HELLO")
+end)
+
+tests:it("balanced match %b", function()
+    assert(string.match("a(b(c)d)e", "%b()") == "(b(c)d)")
+    assert(string.match("{test}", "%b{}") == "{test}")
+    assert(string.match("[1,2,3]", "%b[]") == "[1,2,3]")
+end)
+
+tests:it("frontiers %f", function()
+    assert(string.gsub("aaa aa a aaa a", "%f[%w]a", "x") == "xaa xa x xaa x")
+    assert(string.gsub("01abc45de3", "%f[%d]", ".") == ".01abc.45de.3")
+    assert(string.gsub("function", "%f[^\1-\255]", ".") == "function.")
+    assert(string.find("a", "%f[a]") == 1)
+end)
+
+tests:it("gmatch iterator", function()
+    local s = "hello world from lua"
+    local t = {}
+    for w in string.gmatch(s, "%w+") do
+        table.insert(t, w)
+    end
+    assert(#t == 4)
+    assert(t[1] == "hello")
+    assert(t[4] == "lua")
+end)
+
+tests:it("gmatch with captures", function()
+    local s = "a=1, b=2, c=3"
+    local t = {}
+    for k, v in string.gmatch(s, "(%w+)=(%d+)") do
+        t[k] = tonumber(v)
+    end
+    assert(t.a == 1 and t.b == 2 and t.c == 3)
+end)
+
+tests:it("position capture", function()
+    local s = "hello"
+    local p1, p2, p3 = string.match(s, "()l()l()")
+    assert(p1 == 3 and p2 == 4 and p3 == 5)
+end)
+
+tests:it("nested captures", function()
+    local s = "hello"
+    local a, b = string.match(s, "((.)%w+)")
+    assert(a == "hello" and b == "h")
+end)
+
+tests:finish()
+

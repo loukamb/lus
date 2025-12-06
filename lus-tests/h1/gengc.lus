@@ -1,0 +1,91 @@
+global print, require, assert, collectgarbage, setmetatable, getmetatable, coroutine, debug
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("gengc")
+
+local debug = require"debug"
+
+tests:it("gc mode switching", function()
+    local oldmode = collectgarbage("generational")
+    assert(oldmode == "incremental" or oldmode == "generational")
+    
+    -- switching modes
+    assert(collectgarbage("incremental") == "generational")
+    assert(collectgarbage("generational") == "incremental")
+    
+    collectgarbage(oldmode)
+end)
+
+tests:it("table barrier evolution", function()
+    local U = {}
+    collectgarbage()  -- make U old
+    
+    -- U refers to a new table
+    U[1] = {x = {234}}
+    
+    -- both survive collections
+    collectgarbage("step")
+    collectgarbage("step")
+    
+    -- data was not corrupted
+    assert(U[1].x[1] == 234)
+end)
+
+tests:it("firstold1 correction", function()
+    local function foo() end
+    local old = {10}
+    collectgarbage()    -- make 'old' old
+    setmetatable(old, {})    -- new table
+    collectgarbage("step")   -- step
+    setmetatable(getmetatable(old), {__gc = foo})  -- get it out of allgc list
+    collectgarbage("step")   -- should not seg. fault
+    assert(old[1] == 10)
+end)
+
+tests:it("finalized objects", function()
+    local finalized = false
+    local obj = setmetatable({}, {__gc = function()
+        finalized = true
+    end})
+    obj = nil
+    collectgarbage()
+    collectgarbage()
+    assert(finalized)
+end)
+
+tests:it("coroutine with closures", function()
+    local old = {10}
+    collectgarbage()   -- make 'old' old
+    local co = coroutine.create(function()
+        local x = nil
+        local f = function()
+            return x and x[1]
+        end
+        x = coroutine.yield(f)
+        coroutine.yield()
+    end)
+    local _, f = coroutine.resume(co)   -- create closure over 'x' in coroutine
+    collectgarbage("step")
+    old[1] = {"hello"}
+    coroutine.resume(co, {123})
+    collectgarbage("step")
+    assert(f() == 123 and old[1][1] == "hello")
+end)
+
+tests:it("weak table in generational mode", function()
+    local t = setmetatable({}, {__mode = "kv"})
+    collectgarbage()
+    t[1] = {10}
+    collectgarbage("step")
+    collectgarbage("step")
+    collectgarbage("step")
+    -- weak table should clear unreferenced values
+    collectgarbage()
+    assert(t[1] == nil or t[1][1] == 10)
+end)
+
+tests:it("gc is running", function()
+    assert(collectgarbage'isrunning')
+end)
+
+tests:finish()

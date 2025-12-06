@@ -12,24 +12,24 @@
 
 global assert, type, tonumber, os, require
 
-local testbase = require("lus-tests._base")
-local tests = testbase.new("enum")
+local framework = require("lus-tests.framework")
+local tests = framework.new("enum")
 
-tests:try("basic enum declaration", function()
+tests:it("basic enum declaration", function()
     local e = enum
         apple, orange, celery
     end
     assert(e ~= nil)
 end)
 
-tests:try("enum equals first value", function()
+tests:it("enum equals first value", function()
     local e = enum
         apple, orange, celery
     end
     assert(e == e.apple)
 end)
 
-tests:try("different values not equal", function()
+tests:it("different values not equal", function()
     local e = enum
         apple, orange, celery
     end
@@ -38,14 +38,14 @@ tests:try("different values not equal", function()
     assert(e.apple ~= e.celery)
 end)
 
-tests:try("different enums never equal", function()
+tests:it("different enums never equal", function()
     local e1 = enum a, b, c end
     local e2 = enum a, b, c end
     assert(e1.a ~= e2.a)
     assert(e1.b ~= e2.b)
 end)
 
-tests:try("same enum values are equal", function()
+tests:it("same enum values are equal", function()
     local e = enum x, y, z end
     assert(e.x == e.x)
     assert(e.y == e.y)
@@ -53,7 +53,7 @@ tests:try("same enum values are equal", function()
     assert(e[2] == e.y)
 end)
 
-tests:try("tonumber returns 1-based index", function()
+tests:it("tonumber returns 1-based index", function()
     local e = enum
         first, second, third, fourth
     end
@@ -63,7 +63,7 @@ tests:try("tonumber returns 1-based index", function()
     assert(tonumber(e.fourth) == 4)
 end)
 
-tests:try("index by number", function()
+tests:it("index by number", function()
     local e = enum a, b, c, d end
     assert(e[1] == e.a)
     assert(e[2] == e.b)
@@ -71,7 +71,7 @@ tests:try("index by number", function()
     assert(e[4] == e.d)
 end)
 
-tests:try("chained indexing", function()
+tests:it("chained indexing", function()
     local e = enum x, y, z end
     assert(e.x.y == e.y)
     assert(e.x.z == e.z)
@@ -79,66 +79,66 @@ tests:try("chained indexing", function()
     assert(e.z.y.x == e.x)
 end)
 
-tests:try("chained numeric indexing", function()
+tests:it("chained numeric indexing", function()
     local e = enum a, b, c end
     assert(e[1][2] == e.b)
     assert(e[3][1] == e.a)
 end)
 
-tests:try("less than comparison", function()
+tests:it("less than comparison", function()
     local e = enum first, second, third end
     assert(e.first < e.second)
     assert(e.second < e.third)
     assert(e.first < e.third)
 end)
 
-tests:try("less than or equal comparison", function()
+tests:it("less than or equal comparison", function()
     local e = enum a, b, c end
     assert(e.a <= e.a)
     assert(e.a <= e.b)
     assert(e.b <= e.c)
 end)
 
-tests:try("greater than comparison", function()
+tests:it("greater than comparison", function()
     local e = enum x, y, z end
     assert(e.z > e.y)
     assert(e.y > e.x)
     assert(e.z > e.x)
 end)
 
-tests:try("greater than or equal comparison", function()
+tests:it("greater than or equal comparison", function()
     local e = enum a, b, c end
     assert(e.c >= e.c)
     assert(e.c >= e.b)
     assert(e.b >= e.a)
 end)
 
-tests:try("type returns enum", function()
+tests:it("type returns enum", function()
     local e = enum val end
     assert(type(e) == "enum")
     assert(type(e.val) == "enum")
 end)
 
-tests:try("type of indexed value", function()
+tests:it("type of indexed value", function()
     local e = enum a, b, c end
     assert(type(e[1]) == "enum")
     assert(type(e.b) == "enum")
 end)
 
-tests:try("single value enum", function()
+tests:it("single value enum", function()
     local e = enum only end
     assert(e == e.only)
     assert(tonumber(e.only) == 1)
 end)
 
-tests:try("enum in table", function()
+tests:it("enum in table", function()
     local e = enum red, green, blue end
     local t = { color = e.green }
     assert(t.color == e.green)
     assert(t.color ~= e.red)
 end)
 
-tests:try("enum as function argument", function()
+tests:it("enum as function argument", function()
     local e = enum on, off end
     local function check(val)
         return val == e.on
@@ -147,7 +147,7 @@ tests:try("enum as function argument", function()
     assert(check(e.off) == false)
 end)
 
-tests:try("enum as function return", function()
+tests:it("enum as function return", function()
     local e = enum success, failure end
     local function getStatus()
         return e.success
@@ -155,7 +155,7 @@ tests:try("enum as function return", function()
     assert(getStatus() == e.success)
 end)
 
-tests:try("cross-enum index comparison", function()
+tests:it("cross-enum index comparison", function()
     local e1 = enum a, b, c end
     local e2 = enum x, y, z end
     -- Same positions but different enums
@@ -165,7 +165,7 @@ tests:try("cross-enum index comparison", function()
     assert(e1.a ~= e2.x)
 end)
 
-tests:try("enum with many values", function()
+tests:it("enum with many values", function()
     local e = enum
         v1, v2, v3, v4, v5,
         v6, v7, v8, v9, v10
@@ -175,4 +175,4 @@ tests:try("enum with many values", function()
     assert(e[5] == e.v5)
 end)
 
-os.exit(tests:status())
+tests:finish()

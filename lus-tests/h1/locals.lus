@@ -1,0 +1,163 @@
+global print, require, assert, type, load, string, table, _G, select, error, math, coroutine, pairs, ipairs, setmetatable, getmetatable, collectgarbage, tostring, xpcall
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("locals")
+
+local debug = require"debug"
+
+local function func2close (f, x, y)
+  local obj = setmetatable({}, {__close = f})
+  if x then
+    return x, obj, y
+  else
+    return obj
+  end
+end
+
+tests:it("local variables scope", function()
+    local i = 10
+    do local i = 100; assert(i==100) end
+    do local i = 1000; assert(i==1000) end
+    assert(i == 10)
+    if i ~= 10 then
+        local i = 20
+    else
+        local i = 30
+        assert(i == 30)
+    end
+end)
+
+tests:it("function with locals", function()
+    local function f (a)
+      local x = 3
+      local b = a
+      local c,d = a,b
+      if (d == b) then
+        local x = 'q'
+        x = b
+        assert(x == 2)
+      end
+      assert(x == 3)
+    end
+    f(2)
+end)
+
+tests:it("lexical environment _ENV", function()
+    assert(_ENV == _G)
+    local c = {}
+    local f = load("a = 3", nil, nil, c)
+    assert(c.a == nil)
+    f()
+    assert(c.a == 3)
+end)
+
+tests:it("local constants", function()
+    local a <const> = 10
+    assert(a == 10)
+    
+    -- const variables maintain their value
+    local b <const>, c = 20, 30
+    assert(b == 20 and c == 30)
+    c = 40  -- c is not const
+    assert(c == 40)
+    assert(b == 20)  -- b still const
+end)
+
+tests:it("to-be-closed variables basic", function()
+    local closed = false
+    local function test()
+        local x <close> = setmetatable({}, {__close = function() closed = true end})
+    end
+    test()
+    assert(closed)
+end)
+
+tests:it("to-be-closed order", function()
+    local a = {}
+    do
+        local b <close> = false   -- not to be closed
+        local x <close> = setmetatable({"x"}, {__close = function (self)
+                                                   a[#a + 1] = self[1] end})
+        local w, y <close>, z = func2close(function (self, err)
+                                assert(err == nil); a[#a + 1] = "y"
+                              end, 10, 20)
+        local c <close> = nil  -- not to be closed
+        a[#a + 1] = "in"
+        assert(w == 10 and z == 20)
+    end
+    a[#a + 1] = "out"
+    assert(a[1] == "in" and a[2] == "y" and a[3] == "x" and a[4] == "out")
+end)
+
+tests:it("to-be-closed with return", function()
+    local X = false
+    
+    local x, closescope = func2close(function (_, msg)
+        assert(msg == nil)
+        X = true
+    end, 100)
+    assert(x == 100)
+    
+    local function foo (x)
+        local _ <close> = closescope
+        return x, X, 23
+    end
+    
+    local a, b, c = foo(1.5)
+    assert(a == 1.5 and b == false and c == 23 and X == true)
+end)
+
+tests:it("to-be-closed x compile-time constants", function()
+    local flag = false
+    local x = setmetatable({},
+        {__close = function() assert(flag == false); flag = true end})
+    local y <const> = nil
+    local z <const> = nil
+    do
+        local a <close> = x
+    end
+    assert(flag)   -- 'x' must be closed here
+end)
+
+tests:it("tbc inside close methods", function()
+    local track = {}
+    local function foo ()
+        local x <close> = func2close(function ()
+            local xx <close> = func2close(function (_, msg)
+                assert(msg == nil)
+                track[#track + 1] = "xx"
+            end)
+            track[#track + 1] = "x"
+        end)
+        track[#track + 1] = "foo"
+        return 20, 30, 40
+    end
+    local a, b, c, d = foo()
+    assert(a == 20 and b == 30 and c == 40 and d == nil)
+    assert(track[1] == "foo" and track[2] == "x" and track[3] == "xx")
+end)
+
+tests:it("errors in __close - original", function()
+    local function foo ()
+        local z <close> = func2close(function (self, msg)
+            assert(msg == nil)
+            error("@z")
+        end)
+        return 200
+    end
+    
+    local stat, msg = catch foo()
+    assert(not stat and string.find(msg, "@z"))
+end)
+
+tests:it("non-closable value error", function()
+    local function foo ()
+        local x <close> = {}
+        return 1
+    end
+    local stat, msg = catch foo()
+    assert(not stat and string.find(msg, "non%-closable"))
+end)
+
+tests:finish()
+

@@ -11,10 +11,10 @@
 
 global print, setmetatable, assert, _G, require, os
 
-local testbase = require("lus-tests._base")
-local tests = testbase.new("ifassign")
+local framework = require("lus-tests.framework")
+local tests = framework.new("ifassign")
 
-tests:try("if with truthy assignment", function()
+tests:it("if with truthy assignment", function()
     local result = nil
     if x = 42 then
         result = x
@@ -22,7 +22,7 @@ tests:try("if with truthy assignment", function()
     assert(result == 42, "x should be 42")
 end)
 
-tests:try("if with falsy assignment (nil)", function()
+tests:it("if with falsy assignment (nil)", function()
     local result = "not entered"
     if x = nil then
         result = "entered"
@@ -30,7 +30,7 @@ tests:try("if with falsy assignment (nil)", function()
     assert(result == "not entered", "should not enter block when nil")
 end)
 
-tests:try("if with falsy assignment (false)", function()
+tests:it("if with falsy assignment (false)", function()
     local result = "not entered"
     if x = false then
         result = "entered"
@@ -38,7 +38,7 @@ tests:try("if with falsy assignment (false)", function()
     assert(result == "not entered", "should not enter block when false")
 end)
 
-tests:try("if with string value", function()
+tests:it("if with string value", function()
     local result = nil
     if s = "hello" then
         result = s
@@ -46,7 +46,7 @@ tests:try("if with string value", function()
     assert(result == "hello", "s should be 'hello'")
 end)
 
-tests:try("if with zero (truthy in Lua)", function()
+tests:it("if with zero (truthy in Lua)", function()
     local result = nil
     if x = 0 then
         result = x
@@ -54,7 +54,7 @@ tests:try("if with zero (truthy in Lua)", function()
     assert(result == 0, "0 is truthy, x should be 0")
 end)
 
-tests:try("if with empty string (truthy in Lua)", function()
+tests:it("if with empty string (truthy in Lua)", function()
     local result = nil
     if s = "" then
         result = s
@@ -62,7 +62,7 @@ tests:try("if with empty string (truthy in Lua)", function()
     assert(result == "", "empty string is truthy")
 end)
 
-tests:try("if with function call returning truthy value", function()
+tests:it("if with function call returning truthy value", function()
     local function getValue()
         return 100
     end
@@ -73,7 +73,7 @@ tests:try("if with function call returning truthy value", function()
     assert(result == 100, "v should be 100")
 end)
 
-tests:try("if with function call returning nil", function()
+tests:it("if with function call returning nil", function()
     local function getNil()
         return nil
     end
@@ -84,7 +84,7 @@ tests:try("if with function call returning nil", function()
     assert(result == "not entered", "should not enter block")
 end)
 
-tests:try("keepIfSumOverTen example from docs", function()
+tests:it("keepIfSumOverTen example from docs", function()
     local function keepIfSumOverTen(a, b)
         local c = a + b
         return c > 10 and c or nil
@@ -103,7 +103,7 @@ tests:try("keepIfSumOverTen example from docs", function()
     assert(result2 == "not entered", "3 + 4 = 7 which is not over 10")
 end)
 
-tests:try("multiple variables all truthy", function()
+tests:it("multiple variables all truthy", function()
     local result = nil
     if a, b, c = 1, 5, 9 then
         result = a + b + c
@@ -111,7 +111,7 @@ tests:try("multiple variables all truthy", function()
     assert(result == 15, "a+b+c should be 15")
 end)
 
-tests:try("multiple variables with one nil (first)", function()
+tests:it("multiple variables with one nil (first)", function()
     local result = "not entered"
     if a, b, c = nil, 2, 3 then
         result = "entered"
@@ -119,7 +119,7 @@ tests:try("multiple variables with one nil (first)", function()
     assert(result == "not entered", "first value nil, should not enter")
 end)
 
-tests:try("multiple variables with one nil (middle)", function()
+tests:it("multiple variables with one nil (middle)", function()
     local result = "not entered"
     if a, b, c = 1, nil, 3 then
         result = "entered"
@@ -127,7 +127,7 @@ tests:try("multiple variables with one nil (middle)", function()
     assert(result == "not entered", "middle value nil, should not enter")
 end)
 
-tests:try("multiple variables with one nil (last)", function()
+tests:it("multiple variables with one nil (last)", function()
     local result = "not entered"
     if a, b, c = 1, 2, nil then
         result = "entered"
@@ -135,7 +135,7 @@ tests:try("multiple variables with one nil (last)", function()
     assert(result == "not entered", "last value nil, should not enter")
 end)
 
-tests:try("multiple variables with one false", function()
+tests:it("multiple variables with one false", function()
     local result = "not entered"
     if a, b, c = 3, 6, false then
         result = "entered"
@@ -143,7 +143,7 @@ tests:try("multiple variables with one false", function()
     assert(result == "not entered", "one value false, should not enter")
 end)
 
-tests:try("multiple variables all same value", function()
+tests:it("multiple variables all same value", function()
     local v = 7
     local result = nil
     if a, b, c = v, v, v then
@@ -152,7 +152,7 @@ tests:try("multiple variables all same value", function()
     assert(result == 21, "all should be 7, sum is 21")
 end)
 
-tests:try("elseif with assignment when if fails", function()
+tests:it("elseif with assignment when if fails", function()
     local result = nil
     if x = nil then
         result = "if"
@@ -162,7 +162,7 @@ tests:try("elseif with assignment when if fails", function()
     assert(result == 99, "elseif should execute with y=99")
 end)
 
-tests:try("elseif chain", function()
+tests:it("elseif chain", function()
     local result = nil
     if a = nil then
         result = "first"
@@ -174,7 +174,7 @@ tests:try("elseif chain", function()
     assert(result == "winner", "third elseif should win")
 end)
 
-tests:try("variables from if visible in elseif (from docs example)", function()
+tests:it("variables from if visible in elseif (from docs example)", function()
     local a_val, b_val, c_val, d_val = nil, nil, nil, nil
     if a, b, c = 3, 6, nil then
         a_val = "unexpected"
@@ -190,7 +190,7 @@ tests:try("variables from if visible in elseif (from docs example)", function()
     assert(d_val == 9, "d should be 9 from elseif")
 end)
 
-tests:try("variables from if visible in else", function()
+tests:it("variables from if visible in else", function()
     local captured_a = nil
     if a = nil then
         -- Should not enter
@@ -200,7 +200,7 @@ tests:try("variables from if visible in else", function()
     assert(captured_a == nil, "a should be nil in else block")
 end)
 
-tests:try("variables accumulate across conditions", function()
+tests:it("variables accumulate across conditions", function()
     local sum = 0
     if a = nil then
         -- fail
@@ -212,7 +212,7 @@ tests:try("variables accumulate across conditions", function()
     assert(sum == 10, "sum should be 10 (a and b are nil)")
 end)
 
-tests:try("nested if statements with assignments", function()
+tests:it("nested if statements with assignments", function()
     local outer_result, inner_result = nil, nil
     if outer = 5 then
         outer_result = outer
@@ -224,7 +224,7 @@ tests:try("nested if statements with assignments", function()
     assert(inner_result == 10, "inner should be 10")
 end)
 
-tests:try("inner assignment variables don't leak out", function()
+tests:it("inner assignment variables don't leak out", function()
     local result = "not set"
     if outer = 1 then
         if inner = 2 then
@@ -234,7 +234,7 @@ tests:try("inner assignment variables don't leak out", function()
     assert(result == 2, "inner was 2")
 end)
 
-tests:try("if-assignment with else", function()
+tests:it("if-assignment with else", function()
     local result = nil
     if x = nil then
         result = "if"
@@ -244,7 +244,7 @@ tests:try("if-assignment with else", function()
     assert(result == "else", "should enter else when nil")
 end)
 
-tests:try("if-assignment elseif-assignment else chain", function()
+tests:it("if-assignment elseif-assignment else chain", function()
     local result = nil
     if a = false then
         result = "if"
@@ -256,7 +256,7 @@ tests:try("if-assignment elseif-assignment else chain", function()
     assert(result == "else", "should enter else")
 end)
 
-tests:try("variables from failed conditions visible in else", function()
+tests:it("variables from failed conditions visible in else", function()
     local all_nil = true
     if a = nil then
         all_nil = false
@@ -268,7 +268,7 @@ tests:try("variables from failed conditions visible in else", function()
     assert(all_nil, "both a and b should be nil in else")
 end)
 
-tests:try("single variable with table value", function()
+tests:it("single variable with table value", function()
     local result = nil
     if t = {1, 2, 3} then
         result = t[2]
@@ -276,7 +276,7 @@ tests:try("single variable with table value", function()
     assert(result == 2, "t[2] should be 2")
 end)
 
-tests:try("assignment from method call", function()
+tests:it("assignment from method call", function()
     local obj = {
         value = 42,
         get = function(self) return self.value end
@@ -288,7 +288,7 @@ tests:try("assignment from method call", function()
     assert(result == 42, "method should return 42")
 end)
 
-tests:try("assignment with arithmetic expression", function()
+tests:it("assignment with arithmetic expression", function()
     local result = nil
     if x = 10 + 20 then
         result = x
@@ -296,7 +296,7 @@ tests:try("assignment with arithmetic expression", function()
     assert(result == 30, "x should be 30")
 end)
 
-tests:try("multiple values from function with multiple returns", function()
+tests:it("multiple values from function with multiple returns", function()
     local function multi()
         return 1, 2, 3
     end
@@ -307,7 +307,7 @@ tests:try("multiple values from function with multiple returns", function()
     assert(result == 6, "sum should be 6")
 end)
 
-tests:try("more variables than values (extras become nil)", function()
+tests:it("more variables than values (extras become nil)", function()
     local function one()
         return 100
     end
@@ -318,7 +318,7 @@ tests:try("more variables than values (extras become nil)", function()
     assert(result == "not entered", "b is nil, should not enter")
 end)
 
-tests:try("catch expression in if assignment", function()
+tests:it("catch expression in if assignment", function()
     local result = nil
     local status = nil
     if ok, val = catch (1 + 2) then
@@ -329,18 +329,18 @@ tests:try("catch expression in if assignment", function()
     assert(result == 3, "val should be 3")
 end)
 
-tests:try("condition variable not visible outside if", function()
+tests:it("condition variable not visible outside if", function()
     if cond_var = 123 then
         assert(cond_var == 123)
     end
     assert(_G.cond_var == nil, "cond_var should not leak to globals")
 end)
 
-tests:try("condition variables are local, not global", function()
+tests:it("condition variables are local, not global", function()
     if test_global_var = 999 then
         assert(test_global_var == 999)
     end
     assert(_G.test_global_var == nil, "should not create global variable")
 end)
 
-os.exit(tests:status())
+tests:finish()

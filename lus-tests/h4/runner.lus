@@ -1,0 +1,85 @@
+--[[
+    H4 Runner: Performance & Benchmarks
+    
+    Runs benchmarks and compares results against thresholds.
+    Logic:
+      - Critical -> ALWAYS FAIL
+      - Bad -> FAIL if Standard Release, PASS if Unstable/Security
+      - Acceptable/Good -> PASS
+]]
+
+global print, os, io, tonumber, require, string
+
+local build_type = os.getenv("BUILD_TYPE") or "Unstable"
+print("H4 Runner: Build Type = " .. build_type)
+
+local function run_benchmark(name, cmd)
+    print("Benchmarking: " .. name)
+    local start = os.clock()
+    local status = os.execute(cmd)
+    local elapsed = os.clock() - start
+    
+    if not status then
+        print("  \27[31mExecution Failed\27[0m")
+        return nil
+    end
+    print(string.format("  Time: %.4fs", elapsed))
+    return elapsed
+end
+
+-- Thresholds
+-- TODO: these would be loaded from a config
+local thresholds = {
+    fib = { critical = 5.0, bad = 2.0, acceptable = 1.0 }
+}
+
+local function evaluate(name, time)
+    local t = thresholds[name]
+    if not t then return "Good" end
+    
+    if time > t.critical then return "Critical" end
+    if time > t.bad then return "Bad" end
+    if time > t.acceptable then return "Acceptable" end
+    return "Good"
+end
+
+local metrics = {}
+local lus_cmd = "lus/build/lus"
+
+-- Check if binary exists
+local f = io.open(lus_cmd, "r")
+if not f then
+     -- fallback to just 'lus'
+     lus_cmd = "lus"
+else
+    f:close()
+end
+
+local time = run_benchmark("fib", lus_cmd .. " lus-tests/h4/bench_fib.lus")
+if not time then os.exit(1) end
+
+local status = evaluate("fib", time)
+print("  Status: " .. status)
+
+-- Logic Matrix
+-- | Score      | Unstable | Security | Standard |
+-- | Critical   | FAIL     | FAIL     | FAIL     |
+-- | Bad        | PASS     | PASS     | FAIL     |
+-- | Acceptable | PASS     | PASS     | PASS     |
+-- | Good       | PASS     | PASS     | PASS     |
+
+local function decide_pass_fail(status, build_type)
+    if status == "Critical" then return false end
+    if status == "Bad" then
+        if build_type == "Standard" then return false end
+    end
+    return true
+end
+
+if decide_pass_fail(status, build_type) then
+    print("\27[32mH4 PASSED\27[0m")
+    os.exit(0)
+else
+    print("\27[31mH4 FAILED\27[0m")
+    os.exit(1)
+end

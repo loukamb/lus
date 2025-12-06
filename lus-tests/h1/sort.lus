@@ -1,0 +1,103 @@
+global print, require, assert, type, table, math, os, load, string, pairs, ipairs, select
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("sort")
+
+tests:it("basic sort", function()
+    local a = {5, 2, 8, 1, 9}
+    table.sort(a)
+    assert(a[1] == 1 and a[2] == 2 and a[3] == 5 and a[4] == 8 and a[5] == 9)
+end)
+
+tests:it("custom comparator", function()
+    local a = {1, 2, 3, 4, 5}
+    table.sort(a, function(x,y) return x > y end)
+    assert(a[1] == 5 and a[5] == 1)
+end)
+
+tests:it("sort strings", function()
+    local a = {"b", "c", "a"}
+    table.sort(a)
+    assert(a[1] == "a" and a[3] == "c")
+end)
+
+tests:it("sort by field", function()
+    local a = {
+        {val=5, id=1},
+        {val=2, id=2},
+        {val=5, id=3},
+        {val=2, id=4}
+    }
+    table.sort(a, function(x,y) return x.val < y.val end)
+    assert(a[1].val == 2 and a[2].val == 2)
+    assert(a[3].val == 5 and a[4].val == 5)
+end)
+
+tests:it("sort large array", function()
+    local a = {}
+    for i = 100, 1, -1 do a[#a+1] = i end
+    table.sort(a)
+    for i = 1, 100 do assert(a[i] == i) end
+end)
+
+tests:it("sort empty/single", function()
+    local a = {}
+    table.sort(a)
+    assert(#a == 0)
+    
+    a = {1}
+    table.sort(a)
+    assert(a[1] == 1)
+end)
+
+tests:it("table.unpack", function()
+    local a = {10, 20, 30}
+    local x,y,z = table.unpack(a)
+    assert(x == 10 and y == 20 and z == 30)
+    
+    -- partial unpack
+    local x,y = table.unpack(a, 1, 2)
+    assert(x == 10 and y == 20)
+end)
+
+tests:it("table.pack", function()
+    local p = table.pack(1,2,3,nil,5)
+    assert(p.n == 5)
+    assert(p[4] == nil)
+    assert(p[5] == 5)
+end)
+
+tests:it("table.insert", function()
+    local a = {1, 2, 4}
+    table.insert(a, 3, 3)
+    assert(a[1] == 1 and a[2] == 2 and a[3] == 3 and a[4] == 4)
+    
+    table.insert(a, 5)
+    assert(a[5] == 5)
+end)
+
+tests:it("table.remove", function()
+    local a = {1, 2, 3, 4}
+    local v = table.remove(a, 2)
+    assert(v == 2)
+    assert(a[1] == 1 and a[2] == 3 and a[3] == 4)
+    
+    v = table.remove(a)
+    assert(v == 4 and #a == 2)
+end)
+
+tests:it("table.concat", function()
+    local a = {"a", "b", "c"}
+    assert(table.concat(a) == "abc")
+    assert(table.concat(a, ",") == "a,b,c")
+    assert(table.concat(a, "-", 2, 3) == "b-c")
+end)
+
+tests:it("table.move", function()
+    local a = {1, 2, 3, 4, 5}
+    table.move(a, 2, 4, 1)
+    assert(a[1] == 2 and a[2] == 3 and a[3] == 4)
+end)
+
+tests:finish()
+

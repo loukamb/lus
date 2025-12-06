@@ -1,0 +1,49 @@
+global print, os, io, assert, _G, string, arg, package
+
+local function is_ci()
+    return os.getenv("CI") ~= nil or os.getenv("GITHUB_ACTIONS") ~= nil
+end
+
+if not is_ci() then
+    -- Allow manual override
+    if not (arg and arg[1] == "--force-direct") then
+        print("\27[31mError: H3 Direct Runner detected non-CI environment.\27[0m")
+        print("This runner executes system tests directly on your machine.")
+        print("To run safely locally, use the containerized runner (meson test --suite h3-local).")
+        print("To force run, pass --force-direct.")
+        os.exit(1)
+    end
+end
+
+print("\27[32mH3: Running system tests directly (CI Mode)...\27[0m")
+
+local is_windows = (package.config:sub(1,1) == "\\")
+-- Default to build directory binary if executing from root
+local lus_bin = is_windows and "lus\\build\\lus.exe" or "lus/build/lus"
+
+-- Check if binary exists, otherwise assume in PATH or user provided
+local f = io.open(lus_bin, "r")
+if f then 
+    f:close()
+else
+    -- Fallback to assuming 'lus' is in PATH if build path not found
+    lus_bin = "lus"
+end
+
+-- Helper to run a test file
+local function run_test(file)
+    print("Running " .. file .. "...")
+    local cmd = string.format("%s %s", lus_bin, file)
+    local ok = os.execute(cmd)
+    if not ok then
+        print("\27[31mFailed: " .. file .. "\27[0m")
+        os.exit(1)
+    end
+end
+
+run_test("lus-tests/h3/test_io.lus")
+run_test("lus-tests/h3/files.lus")
+run_test("lus-tests/h3/cli.lus")
+
+print("\27[32mH3: All system tests passed (Direct).\27[0m")
+os.exit(0)

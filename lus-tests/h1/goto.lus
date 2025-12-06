@@ -1,0 +1,62 @@
+global print, require, assert, type, load, string, table, error, _G, tostring
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("goto")
+
+tests:it("simple goto", function()
+    local x = 0
+    local function f()
+        local y = 12
+        goto l1
+        ::l2:: x = x + 1; goto l3
+        ::l1:: x = y; goto l2
+        ::l3::
+    end
+    f()
+    assert(x == 13)
+end)
+
+tests:it("goto error handling (scoping)", function()
+    local function checkerr(code, msg)
+        local ok, f, err = catch load(code)
+        if not ok then
+             -- load raised error directly
+             err = f
+             assert(string.find(err, msg), "Load raise '"..err.."' missing '"..msg.."'")
+             return
+        end
+        
+        -- If load returned nil, err without raising
+        if f == nil then
+             err = f
+             local real_f = f
+             local real_err = err
+             if real_f == nil then
+                 assert(string.find(real_err, msg), "Load error '"..tostring(real_err).."' missing '"..msg.."'")
+             else
+                 -- load succeeded, run it
+                 local run_ok, run_err = catch real_f()
+                 assert(not run_ok, "Expected runtime error for: "..code)
+                 assert(string.find(run_err, msg), "Error '"..run_err.."' missing '"..msg.."'")
+             end
+        end
+    end
+
+    -- cannot see label inside block
+    checkerr([[ goto l1; do ::l1:: end ]], "label 'l1'")
+    
+    -- jump into block
+    checkerr([[ do ::l1:: end goto l1 ]], "label 'l1'")
+end)
+
+tests:it("global declarations", function()
+    -- Lus specific global tests
+    local f = assert(load([[
+        global g_var = 10
+        return g_var
+    ]]))
+    assert(f() == 10)
+    assert(_G.g_var == 10)
+end)
+
+tests:finish()
