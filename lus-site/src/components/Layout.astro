@@ -114,8 +114,12 @@ interface Props {
     .footer-inner {
       @apply flex items-center px-8 gap-4 container mx-auto;
 
-      & > div {
-        @apply flex-1;
+      div {
+        @apply lg:flex-1;
+      }
+
+      img {
+        @apply min-w-8 min-h-8;
       }
     }
   }
