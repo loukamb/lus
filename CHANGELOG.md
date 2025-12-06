@@ -1,12 +1,12 @@
 # Changelog
 
-## Lus 1.1.0
+## 1.1.0
 
 **Release date:** December 6, 2025
 
 - Added `tojson` and `fromjson` functions for JSON serialization and deserialization.
 
-## Lus 1.0.0
+## 1.0.0
 
 **Release date:** December 5, 2025
 
