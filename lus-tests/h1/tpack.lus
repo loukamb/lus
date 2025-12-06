@@ -7,6 +7,8 @@ local pack = string.pack
 local packsize = string.packsize
 local unpack = string.unpack
 
+local is_windows = package.config:sub(1,1) == "\\"
+
 tests:it("basic sizes", function()
     assert(packsize("b") == 1)
     assert(packsize("B") == 1)
@@ -14,8 +16,14 @@ tests:it("basic sizes", function()
     assert(packsize("H") >= 2)
     assert(packsize("i") >= 4)
     assert(packsize("I") >= 4)
-    assert(packsize("l") >= 8)
-    assert(packsize("L") >= 8)
+    -- 'l' is 4 bytes on Windows, 8 bytes on Unix
+    if is_windows then
+        assert(packsize("l") == 4)
+        assert(packsize("L") == 4)
+    else
+        assert(packsize("l") == 8)
+        assert(packsize("L") == 8)
+    end
 end)
 
 tests:it("basic packing integers", function()

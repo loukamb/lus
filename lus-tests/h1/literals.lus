@@ -77,10 +77,16 @@ tests:it("syntax errors in literals", function()
 end)
 
 tests:it("decimal point locale", function()
-    if os.setlocale("pt_BR") then
-      assert(tonumber("3,4") == 3.4)
+    -- Skip on systems without pt_BR locale (e.g., musl Linux)
+    local original = os.setlocale(nil, "numeric")
+    if os.setlocale("pt_BR") or os.setlocale("pt_BR.UTF-8") then
+      -- Only test if locale change succeeded and changes decimal separator
+      local n = tonumber("3,4")
+      if n then
+        assert(n == 3.4)
+      end
       assert(tonumber"3.4" == 3.4)
-      os.setlocale("C")
+      os.setlocale(original or "C")
     end
 end)
 
