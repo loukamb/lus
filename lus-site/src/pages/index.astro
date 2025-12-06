@@ -81,7 +81,7 @@ const news = allNews
         {
           news.map((item) => (
             <li>
-              {item.data.date} -{" "}
+              {item.data.date}:{" "}
               <a href={`/news/${item.id}`}>{item.data.title}</a>
             </li>
           ))
