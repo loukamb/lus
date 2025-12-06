@@ -3,8 +3,14 @@ name: Build
 on:
   push:
     branches: [main]
+    paths:
+      - 'lus/**'
+      - 'lus-tests/**'
   pull_request:
     branches: [main]
+    paths:
+      - 'lus/**'
+      - 'lus-tests/**'
   workflow_dispatch:
 
 jobs:
