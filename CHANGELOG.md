@@ -1,8 +1,8 @@
 # Changelog
 
-## Lus 1.0.0 (**WIP**)
+## Lus 1.0.0
 
-**Release date:** TBD
+**Release date:** December 5, 2025
 
 >[!NOTE]
 > This changelog denotes differences between Lus and Lua 5.5 RC 2. Lua 5.5 most (in)famously introduces the `global` assignment statement; it is not a Lus-specific feature.
