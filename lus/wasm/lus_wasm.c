@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lua.h"
 #include "lauxlib.h"
+#include "lua.h"
 #include "lualib.h"
 
 /* Output buffer for capturing print results */
@@ -54,7 +54,8 @@ static int wasm_print(lua_State *L) {
 /* Create a new Lus state */
 LusState *lus_create(void) {
   LusState *state = (LusState *)malloc(sizeof(LusState));
-  if (!state) return NULL;
+  if (!state)
+    return NULL;
 
   state->L = luaL_newstate();
   if (!state->L) {
@@ -65,25 +66,8 @@ LusState *lus_create(void) {
   state->output[0] = '\0';
   state->output_len = 0;
 
-  /* Open safe libraries (no io, os.execute, loadfile, etc.) */
-  luaL_requiref(state->L, LUA_GNAME, luaopen_base, 1);
-  lua_pop(state->L, 1);
-  luaL_requiref(state->L, LUA_TABLIBNAME, luaopen_table, 1);
-  lua_pop(state->L, 1);
-  luaL_requiref(state->L, LUA_STRLIBNAME, luaopen_string, 1);
-  lua_pop(state->L, 1);
-  luaL_requiref(state->L, LUA_MATHLIBNAME, luaopen_math, 1);
-  lua_pop(state->L, 1);
-  luaL_requiref(state->L, LUA_UTF8LIBNAME, luaopen_utf8, 1);
-  lua_pop(state->L, 1);
-  luaL_requiref(state->L, LUA_COLIBNAME, luaopen_coroutine, 1);
-  lua_pop(state->L, 1);
-
-  /* Remove dangerous functions from base */
-  lua_pushnil(state->L);
-  lua_setglobal(state->L, "dofile");
-  lua_pushnil(state->L);
-  lua_setglobal(state->L, "loadfile");
+  /* Open all standard libraries */
+  luaL_openlibs(state->L);
 
   /* Override print to capture output */
   lua_pushlightuserdata(state->L, state);
@@ -95,7 +79,8 @@ LusState *lus_create(void) {
 
 /* Execute Lus code and return output (or error message) */
 const char *lus_execute(LusState *state, const char *code) {
-  if (!state || !state->L) return "Error: Invalid state";
+  if (!state || !state->L)
+    return "Error: Invalid state";
 
   /* Clear output buffer */
   state->output[0] = '\0';
@@ -146,15 +131,14 @@ const char *lus_execute(LusState *state, const char *code) {
 
   return state->output;
 
-handle_error:
-  {
-    const char *err = lua_tostring(state->L, -1);
-    if (err && state->output_len + strlen(err) < OUTPUT_BUFFER_SIZE - 1) {
-      strcpy(state->output + state->output_len, err);
-    }
-    lua_pop(state->L, 1);
-    return state->output;
+handle_error: {
+  const char *err = lua_tostring(state->L, -1);
+  if (err && state->output_len + strlen(err) < OUTPUT_BUFFER_SIZE - 1) {
+    strcpy(state->output + state->output_len, err);
   }
+  lua_pop(state->L, 1);
+  return state->output;
+}
 }
 
 /* Destroy a Lus state */
@@ -166,4 +150,3 @@ void lus_destroy(LusState *state) {
     free(state);
   }
 }
-
