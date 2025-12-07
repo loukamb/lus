@@ -232,8 +232,10 @@ static int luaB_detach(lua_State *L) {
 
   if (lua_status == LUA_YIELD) {
     int reason = get_yield_reason(co);
-    if (reason == YIELD_IO || reason == YIELD_SLEEP) {
-      /* Async I/O - add to pending list and return status_e.pending */
+    if (reason == YIELD_IO || reason == YIELD_SLEEP ||
+        reason == YIELD_THREADPOOL) {
+      /* Async I/O or thread pool - add to pending list and return
+       * status_e.pending */
       int fd = get_yield_fd(co);
       int events = get_yield_events(co);
       lua_Number deadline = get_yield_deadline(co);

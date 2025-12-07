@@ -214,6 +214,56 @@ static void async_read_bytes_work(ThreadPoolTask *task) {
   rt->ferr = ferror(rt->f);
 }
 
+/* Worker function: read a line */
+static void async_read_line_work(ThreadPoolTask *task) {
+  AsyncReadTask *rt = (AsyncReadTask *)task;
+
+  /* Read line character by character into dynamic buffer */
+  size_t capacity = 256;
+  size_t len = 0;
+  rt->buffer = (char *)malloc(capacity);
+  if (!rt->buffer) {
+    rt->base.error = strdup("out of memory");
+    return;
+  }
+
+  int c;
+  while ((c = getc(rt->f)) != EOF && c != '\n') {
+    if (len + 1 >= capacity) {
+      capacity *= 2;
+      char *newbuf = (char *)realloc(rt->buffer, capacity);
+      if (!newbuf) {
+        free(rt->buffer);
+        rt->buffer = NULL;
+        rt->base.error = strdup("out of memory");
+        return;
+      }
+      rt->buffer = newbuf;
+    }
+    rt->buffer[len++] = (char)c;
+  }
+
+  /* Include newline if not chopping */
+  if (c == '\n' && !rt->chop) {
+    if (len + 1 >= capacity) {
+      char *newbuf = (char *)realloc(rt->buffer, capacity + 1);
+      if (!newbuf) {
+        free(rt->buffer);
+        rt->buffer = NULL;
+        rt->base.error = strdup("out of memory");
+        return;
+      }
+      rt->buffer = newbuf;
+    }
+    rt->buffer[len++] = '\n';
+  }
+
+  rt->buffer[len] = '\0';
+  rt->size = len;
+  rt->eof = (c == EOF && len == 0) ? 1 : 0;
+  rt->ferr = ferror(rt->f);
+}
+
 /* Worker function: write data */
 static void async_write_work(ThreadPoolTask *task) {
   AsyncWriteTask *wt = (AsyncWriteTask *)task;
@@ -222,6 +272,20 @@ static void async_write_work(ThreadPoolTask *task) {
   wt->ferr = ferror(wt->f);
   fflush(wt->f); /* Ensure data is written */
 }
+
+/*
+** Helper macro to set up yield state for thread pool tasks.
+** Clears stale fd/events/deadline to prevent accidental resume by
+** timer or fd checks from prior yields.
+*/
+#define SETUP_ASYNC_YIELD(L, task)                                             \
+  do {                                                                         \
+    set_yield_reason(L, YIELD_THREADPOOL);                                     \
+    set_yield_task(L, (ThreadPoolTask *)(task));                               \
+    set_yield_fd(L, -1);                                                       \
+    set_yield_events(L, 0);                                                    \
+    set_yield_deadline(L, 0);                                                  \
+  } while (0)
 
 /* Get scheduler's thread pool */
 static ThreadPool *get_threadpool(lua_State *L) {
@@ -564,7 +628,36 @@ static int test_eof(lua_State *L, FILE *f) {
   return (c != EOF);
 }
 
-static int read_line(lua_State *L, FILE *f, int chop) {
+/*
+** Read a line from file.
+** For async: returns -1 and populates out_task if async operation started.
+** Returns: 1 = read something, 0 = EOF, -1 = async (caller must yield)
+*/
+static int read_line(lua_State *L, FILE *f, int chop,
+                     AsyncReadTask **out_task) {
+  /* Check if we're in a detached coroutine for async operation */
+  if (is_detached(L)) {
+    ThreadPool *pool = get_threadpool(L);
+    if (pool) {
+      AsyncReadTask *task = (AsyncReadTask *)malloc(sizeof(AsyncReadTask));
+      if (task) {
+        memset(task, 0, sizeof(AsyncReadTask));
+        task->base.work = async_read_line_work;
+        task->f = f;
+        task->chop = chop;
+        task->read_type = 1; /* read line */
+
+        threadpool_submit(pool, (ThreadPoolTask *)task);
+        SETUP_ASYNC_YIELD(L, task);
+
+        if (out_task)
+          *out_task = task;
+        return -1; /* Async task submitted, caller must yield */
+      }
+    }
+  }
+
+  /* Synchronous fallback */
   luaL_Buffer b;
   int c;
   luaL_buffinit(L, &b);
@@ -584,41 +677,67 @@ static int read_line(lua_State *L, FILE *f, int chop) {
   return (c == '\n' || lua_rawlen(L, -1) > 0);
 }
 
-/* Continuation for async read_all - called when thread pool task completes */
-static int read_all_cont(lua_State *L, int status, lua_KContext ctx) {
+/*
+** Generic continuation for async read operations.
+** Handles all read types (read_all, read_line, read_chars).
+** Uses read_type field: 0=all (always success), 1=line, 2=chars (success if
+*read something)
+*/
+static int async_read_cont(lua_State *L, int status, lua_KContext ctx) {
   (void)status;
   AsyncReadTask *task = (AsyncReadTask *)ctx;
 
   if (task->base.error) {
     /* Error occurred in worker thread */
     char *err = task->base.error;
-    if (task->buffer)
+    task->base.error = NULL; /* Prevent double-free in cleanup */
+    if (task->buffer) {
       free(task->buffer);
-    free(task);
+      task->buffer = NULL;
+    }
     lua_pushnil(L);
     lua_pushstring(L, err);
     free(err);
+    set_yield_task(L, NULL);
     return 2;
   }
 
   /* Push the result buffer to Lua stack */
+  int success;
   if (task->buffer && task->size > 0) {
     lua_pushlstring(L, task->buffer, task->size);
     free(task->buffer);
+    task->buffer = NULL;
+    success = 1;
   } else {
-    lua_pushliteral(L, "");
-    if (task->buffer)
+    /* For read_all (*a), empty string is valid; for others, check EOF */
+    if (task->read_type == 0) {
+      lua_pushliteral(L, ""); /* read_all: always push empty string */
+      success = 1;
+    } else {
+      lua_pushliteral(L, ""); /* read_line/read_chars: push empty but fail */
+      success = 0;
+    }
+    if (task->buffer) {
       free(task->buffer);
+      task->buffer = NULL;
+    }
   }
 
-  /* Clear the task reference and free task */
   set_yield_task(L, NULL);
-  free(task);
+  /* Don't free task - still in thread pool's completed queue */
 
-  return 1;
+  return success;
 }
 
-static void read_all(lua_State *L, FILE *f) {
+/*
+** For async operation, read_all submits the task but does NOT yield.
+** It returns -1 to indicate the caller should yield with lua_yieldk.
+** The caller (g_read) then calls lua_yieldk with read_all_cont.
+** Returns: 1 = value pushed synchronously, -1 = async task submitted (caller
+*must yield)
+*/
+static int read_all(lua_State *L, FILE *f, AsyncReadTask **out_task) {
   /* Check if we're in a detached coroutine for async operation */
   if (is_detached(L)) {
     ThreadPool *pool = get_threadpool(L);
@@ -634,17 +753,19 @@ static void read_all(lua_State *L, FILE *f) {
         /* Submit to thread pool */
         threadpool_submit(pool, (ThreadPoolTask *)task);
 
-        /* Set up yield for thread pool completion */
+        /* Set up yield for thread pool completion
+         * Clear fd/events/deadline to prevent accidental resume by timer or fd
+         * checks */
         set_yield_reason(L, YIELD_THREADPOOL);
         set_yield_task(L, (ThreadPoolTask *)task);
+        set_yield_fd(L, -1);      /* No fd */
+        set_yield_events(L, 0);   /* No events */
+        set_yield_deadline(L, 0); /* No deadline */
 
-        /* Yield with continuation - when resumed, read_all_cont will be called
-         */
-        lua_yieldk(L, 0, (lua_KContext)task, read_all_cont);
-        /* Note: lua_yieldk does not return here in normal operation */
-
-        /* If we get here, yieldk failed - fall through to sync path */
-        free(task);
+        /* Return task so caller can yield with it */
+        if (out_task)
+          *out_task = task;
+        return -1; /* Async task submitted, caller must yield */
       }
     }
   }
@@ -659,42 +780,17 @@ static void read_all(lua_State *L, FILE *f) {
     luaL_addsize(&b, nr);
   } while (nr == LUAL_BUFFERSIZE);
   luaL_pushresult(&b); /* close buffer */
+  return 1;            /* one value pushed synchronously */
 }
 
-/* Continuation for async read_chars - called when thread pool task completes */
-static int read_chars_cont(lua_State *L, int status, lua_KContext ctx) {
-  (void)status;
-  AsyncReadTask *task = (AsyncReadTask *)ctx;
-
-  if (task->base.error) {
-    char *err = task->base.error;
-    if (task->buffer)
-      free(task->buffer);
-    free(task);
-    lua_pushnil(L);
-    lua_pushstring(L, err);
-    free(err);
-    return 0; /* Indicate failure */
-  }
-
-  /* Push the result buffer to Lua stack */
-  int success = (task->size > 0);
-  if (task->buffer && task->size > 0) {
-    lua_pushlstring(L, task->buffer, task->size);
-    free(task->buffer);
-  } else {
-    lua_pushliteral(L, "");
-    if (task->buffer)
-      free(task->buffer);
-  }
-
-  set_yield_task(L, NULL);
-  free(task);
-
-  return success;
-}
-
-static int read_chars(lua_State *L, FILE *f, size_t n) {
+/*
+** Read N characters (bytes) from file.
+** For async: returns -1 and populates out_task if async operation started.
+** Caller must then yield with lua_yieldk using async_read_cont.
+** Returns: 1 = read something, 0 = EOF, -1 = async (caller must yield)
+*/
+static int read_chars(lua_State *L, FILE *f, size_t n,
+                      AsyncReadTask **out_task) {
   /* Check if we're in a detached coroutine for async operation */
   if (is_detached(L)) {
     ThreadPool *pool = get_threadpool(L);
@@ -708,11 +804,11 @@ static int read_chars(lua_State *L, FILE *f, size_t n) {
         task->read_type = 2; /* read bytes */
 
         threadpool_submit(pool, (ThreadPoolTask *)task);
+        SETUP_ASYNC_YIELD(L, task);
 
-        set_yield_reason(L, YIELD_THREADPOOL);
-        set_yield_task(L, (ThreadPoolTask *)task);
-
-        return (int)lua_yieldk(L, 0, (lua_KContext)task, read_chars_cont);
+        if (out_task)
+          *out_task = task;
+        return -1; /* Async task submitted, caller must yield */
       }
     }
   }
@@ -732,10 +828,15 @@ static int read_chars(lua_State *L, FILE *f, size_t n) {
 static int g_read(lua_State *L, FILE *f, int first) {
   int nargs = lua_gettop(L) - 1;
   int n, success;
+  AsyncReadTask *task = NULL; /* For async operations */
   clearerr(f);
   errno = 0;
   if (nargs == 0) { /* no arguments? */
-    success = read_line(L, f, 1);
+    int res = read_line(L, f, 1, &task);
+    if (res == -1 && task) {
+      return (int)lua_yieldk(L, 0, (lua_KContext)task, async_read_cont);
+    }
+    success = res;
     n = first + 1; /* to return 1 result */
   } else {
     /* ensure stack space for all results and for auxlib's buffer */
@@ -744,25 +845,48 @@ static int g_read(lua_State *L, FILE *f, int first) {
     for (n = first; nargs-- && success; n++) {
       if (lua_type(L, n) == LUA_TNUMBER) {
         size_t l = (size_t)luaL_checkinteger(L, n);
-        success = (l == 0) ? test_eof(L, f) : read_chars(L, f, l);
+        if (l == 0) {
+          success = test_eof(L, f);
+        } else {
+          int res = read_chars(L, f, l, &task);
+          if (res == -1 && task) {
+            return (int)lua_yieldk(L, 0, (lua_KContext)task, async_read_cont);
+          }
+          success = res;
+        }
       } else {
         const char *p = luaL_checkstring(L, n);
         if (*p == '*')
           p++; /* skip optional '*' (for compatibility) */
         switch (*p) {
-        case 'n': /* number */
+        case 'n': /* number - kept synchronous (complex locale-sensitive
+                     parsing) */
           success = read_number(L, f);
           break;
-        case 'l': /* line */
-          success = read_line(L, f, 1);
+        case 'l': { /* line */
+          int res = read_line(L, f, 1, &task);
+          if (res == -1 && task) {
+            return (int)lua_yieldk(L, 0, (lua_KContext)task, async_read_cont);
+          }
+          success = res;
           break;
-        case 'L': /* line with end-of-line */
-          success = read_line(L, f, 0);
+        }
+        case 'L': { /* line with end-of-line */
+          int res = read_line(L, f, 0, &task);
+          if (res == -1 && task) {
+            return (int)lua_yieldk(L, 0, (lua_KContext)task, async_read_cont);
+          }
+          success = res;
           break;
-        case 'a':         /* file */
-          read_all(L, f); /* read entire file */
-          success = 1;    /* always success */
+        }
+        case 'a': { /* file */
+          int res = read_all(L, f, &task);
+          if (res == -1 && task) {
+            return (int)lua_yieldk(L, 0, (lua_KContext)task, async_read_cont);
+          }
+          success = 1; /* always success for sync case */
           break;
+        }
         default:
           return luaL_argerror(L, n, "invalid format");
         }
@@ -827,7 +951,7 @@ static int g_write_cont(lua_State *L, int status, lua_KContext ctx) {
   size_t expected = task->len;
 
   set_yield_task(L, NULL);
-  free(task);
+  /* Don't free task - still in thread pool's completed queue */
 
   if (ferr || written < expected) {
     /* Write error */

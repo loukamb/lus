@@ -210,7 +210,13 @@ tests:it("error after sleep thrown on poll", function()
   local status = coroutine.detach(co)
   tests:assert_equal(status, coroutine.status_e.pending)
   
-  local ok, err = catch coroutine.poll(1)
+  -- Poll until error is caught (handles timing variability)
+  local ok, err
+  while coroutine.pending() > 0 do
+    ok, err = catch coroutine.poll(0.1)
+    if not ok then break end
+  end
+  
   tests:assert_true(not ok, "poll should throw error")
   tests:assert_true(err:find("delayed failure") ~= nil)
 end)

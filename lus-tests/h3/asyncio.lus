@@ -18,7 +18,7 @@ end
 
 -- Helper to cleanup temp file
 local function cleanup_temp_file(path)
-  os.remove(path)
+  fs.remove(path)
 end
 
 tests:describe("Basic async operations")
@@ -99,7 +99,6 @@ end)
 tests:describe("Error handling")
 
 tests:it("error in file operation propagates", function()
-  local caught_error
   local co = coroutine.create(function()
     -- Try to read from non-existent file
     local f = io.open("/nonexistent/path/file.txt", "r")
@@ -110,11 +109,8 @@ tests:it("error in file operation propagates", function()
   
   coroutine.detach(co)
   
-  local ok = catch do
-    while coroutine.pending() > 0 do
-      coroutine.poll(1)
-    end
-  end
+  -- Poll and catch any errors
+  local ok, err = catch coroutine.poll(1)
   
   -- Either the error was caught or the coroutine completed with file open failure
   -- Both are valid behaviors
@@ -164,7 +160,6 @@ tests:it("file read interleaved with sleep", function()
   local path = create_temp_file(test_content)
   
   local result, slept
-  local start = os.clock()
   
   local co = coroutine.create(function()
     coroutine.sleep(0.05)  -- 50ms sleep
@@ -180,12 +175,12 @@ tests:it("file read interleaved with sleep", function()
     coroutine.poll(1)
   end
   
-  local elapsed = os.clock() - start
   cleanup_temp_file(path)
   
   assert(slept == true, "should have slept")
   assert(result == test_content, "should read after sleep")
-  assert(elapsed >= 0.05, "should have waited at least 50ms")
+  -- Note: os.clock() measures CPU time, not wall-clock time
+  -- Sleep timing is tested in h1/eventloop.lus
 end)
 
 tests:describe("Line-by-line reading")
@@ -216,4 +211,73 @@ tests:it("read lines in detached coroutine", function()
   assert(lines[3] == "Line 3", "third line should match")
 end)
 
+tests:describe("Async read modes after sleep")
+
+tests:it("read *l after sleep", function()
+  local test_content = "First line\nSecond line\n"
+  local path = create_temp_file(test_content)
+  
+  local result
+  local co = coroutine.create(function()
+    coroutine.sleep(0.01)
+    local f = io.open(path, "r")
+    result = f:read("*l")
+    f:close()
+  end)
+  
+  coroutine.detach(co)
+  while coroutine.pending() > 0 do
+    coroutine.poll(1)
+  end
+  
+  cleanup_temp_file(path)
+  
+  assert(result == "First line", "should read first line: " .. tostring(result))
+end)
+
+tests:it("read N bytes after sleep", function()
+  local test_content = "ABCDEFGHIJ"
+  local path = create_temp_file(test_content)
+  
+  local result
+  local co = coroutine.create(function()
+    coroutine.sleep(0.01)
+    local f = io.open(path, "r")
+    result = f:read(5)
+    f:close()
+  end)
+  
+  coroutine.detach(co)
+  while coroutine.pending() > 0 do
+    coroutine.poll(1)
+  end
+  
+  cleanup_temp_file(path)
+  
+  assert(result == "ABCDE", "should read 5 bytes: " .. tostring(result))
+end)
+
+tests:it("read *L (with newline) after sleep", function()
+  local test_content = "Line with newline\n"
+  local path = create_temp_file(test_content)
+  
+  local result
+  local co = coroutine.create(function()
+    coroutine.sleep(0.01)
+    local f = io.open(path, "r")
+    result = f:read("*L")
+    f:close()
+  end)
+  
+  coroutine.detach(co)
+  while coroutine.pending() > 0 do
+    coroutine.poll(1)
+  end
+  
+  cleanup_temp_file(path)
+  
+  assert(result == "Line with newline\n", "should include newline: " .. tostring(result))
+end)
+
 tests:finish()
+

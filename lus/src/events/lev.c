@@ -315,8 +315,9 @@ int scheduler_poll(lua_State *L, int timeout_ms) {
 
       free(cur);
 
-      /* Clear yield reason and resume */
+      /* Clear yield state and resume */
       set_yield_reason(co, YIELD_NORMAL);
+      set_yield_task(co, NULL); /* Clear any stale task pointer */
 
       /* Check coroutine is still resumable */
       int co_status = lua_status(co);
