@@ -21,6 +21,7 @@ SOURCES=(
   "$SRC_DIR/ldump.c"
   "$SRC_DIR/lenum.c"
   "$SRC_DIR/lfunc.c"
+  "$SRC_DIR/lfslib.c"
   "$SRC_DIR/lgc.c"
   "$SRC_DIR/linit.c"
   "$SRC_DIR/liolib.c"
