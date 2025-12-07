@@ -27,6 +27,7 @@
 
 /* Platform-specific socket headers - must come before ares.h for fd_set */
 #if defined(LUS_PLATFORM_WINDOWS)
+#include <BaseTsd.h> /* For SSIZE_T */
 #include <winsock2.h>
 #include <ws2tcpip.h>
 typedef SOCKET socket_t;
