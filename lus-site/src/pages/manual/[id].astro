@@ -1,5 +1,5 @@
 ---
-import Layout from "../../components/Layout.astro"
+import ManualLayout from "../../components/ManualLayout.astro"
 import { getCollection, getEntry, render } from "astro:content"
 
 export async function getStaticPaths() {
@@ -27,93 +27,42 @@ const nextAcquis =
     : null
 ---
 
-<Layout title={page.data.title} unstable={page.data.draft}>
-  <main>
-    <section class="flex flex-col-reverse lg:flex-row gap-8">
-      <aside>
-        {
-          manual
-            .filter((page) => !page.data.acquis)
-            .toSorted((a, b) => a.data.order - b.data.order)
-            .map((page) => <a href={`/manual/${page.id}`}>{page.data.title}</a>)
-        }
-        {manual.some((page) => page.data.acquis) && <br />}
-        {
-          manual
-            .filter((page) => page.data.acquis)
-            .toSorted((a, b) => a.data.order - b.data.order)
-            .map((p) => (
-              <a
-                class:list={["acquis", { draft: p.data.draft }]}
-                href={`/manual/${p.id}`}
-              >
-                {p.data.title}
-              </a>
-            ))
-        }
-      </aside>
-      <article class="flex-1 min-w-0">
-        <h1>{page.data.title}</h1>
-        {
-          rendered.headings.length > 0 && (
-            <div class="toc">
-              {rendered.headings
-                .filter((heading) => heading.depth <= 2)
-                .map((heading, i) => (
-                  <>
-                    {i > 0 ? "· " : ""}
-                    <a href={`#${heading.slug}`}>{heading.text}</a>
-                  </>
-                ))}
-            </div>
-          )
-        }
-        {
-          page.data.draft && (
-            <div class="draft-notice">
-              This acquis is currently only available on unstable builds and its
-              contents may change at any time.
-            </div>
-          )
-        }
-        <rendered.Content />
-        {
-          nextAcquis && (
-            <nav class="next-acquis">
-              <a href={`/manual/${nextAcquis.id}`}>{nextAcquis.data.title} →</a>
-            </nav>
-          )
-        }
-      </article>
-    </section>
-  </main>
-</Layout>
+<ManualLayout title={page.data.title} unstable={page.data.draft}>
+  <h1>{page.data.title}</h1>
+  {
+    rendered.headings.length > 0 && (
+      <div class="toc">
+        {rendered.headings
+          .filter((heading) => heading.depth <= 2)
+          .map((heading, i) => (
+            <>
+              {i > 0 ? "· " : ""}
+              <a href={`#${heading.slug}`}>{heading.text}</a>
+            </>
+          ))}
+      </div>
+    )
+  }
+  {
+    page.data.draft && (
+      <div class="draft-notice">
+        This acquis is currently only available on unstable builds and its
+        contents may change at any time.
+      </div>
+    )
+  }
+  <rendered.Content />
+  {
+    nextAcquis && (
+      <nav class="next-acquis">
+        <a href={`/manual/${nextAcquis.id}`}>{nextAcquis.data.title} →</a>
+      </nav>
+    )
+  }
+</ManualLayout>
 
 <style>
   @reference "../../styles/global.css";
-
-  :global(hr) {
-    @apply my-4 text-lime-800;
-  }
-
-  article {
-    @apply space-y-2;
-  }
-
-  aside {
-    @apply min-w-48 w-1/6;
-    a {
-      @apply block;
-
-      &.acquis {
-        @apply bg-lime-200 text-xs font-mono;
-
-        &.draft {
-          @apply bg-red-200 text-red-800;
-        }
-      }
-    }
-  }
 
   .draft-notice {
     @apply bg-red-100 border border-red-300 text-red-800 px-4 py-2 mb-4 text-sm;

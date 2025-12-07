@@ -1,0 +1,690 @@
+---
+import ManualLayout from "../../../components/ManualLayout.astro"
+---
+
+<ManualLayout title="API">
+  <style>
+    @reference "../../../styles/global.css";
+
+    .api-index {
+      @apply bg-transparent border-none border-collapse;
+
+      td {
+        @apply border-none align-top m-0! p-0!;
+      }
+
+      h3 {
+        @apply text-lg font-bold mb-2 mt-0;
+      }
+
+      p {
+        @apply mb-4 leading-tight;
+      }
+
+      a {
+        @apply font-mono text-xs no-underline hover:bg-lime-200 block font-normal;
+
+        &:not([data-from]) {
+          @apply hover:bg-sky-200 text-sky-900;
+        }
+
+        &[data-from="removed"] {
+          @apply line-through text-neutral-500 hover:bg-transparent;
+        }
+
+        &[data-from="lus"] {
+          @apply hover:bg-lime-200 text-lime-900 font-black;
+        }
+
+        &[data-from="lus-unstable"] {
+          @apply hover:bg-red-200 text-red-900 font-black;
+        }
+      }
+    }
+
+    .legend {
+      @apply flex gap-6 mb-6 text-sm;
+
+      span {
+        @apply font-mono text-xs px-2 py-1;
+      }
+
+      .legend-lus {
+        @apply text-lime-900 bg-lime-100 font-black;
+      }
+
+      .legend-unstable {
+        @apply text-red-900 bg-red-100 font-black;
+      }
+
+      .legend-lua {
+        @apply text-sky-900 bg-sky-100;
+      }
+
+      .legend-removed {
+        @apply text-neutral-500 bg-neutral-100 line-through;
+      }
+    }
+  </style>
+
+  <h1>API reference</h1>
+
+  <div class="legend">
+    <div><span class="legend-lus">green</span> Lus stable functions</div>
+    <div><span class="legend-unstable">red</span> Lus unstable functions</div>
+    <div><span class="legend-lua">blue</span> Lua functions</div>
+    <div>
+      <span class="legend-removed">gray</span> Lua functions removed in Lus
+    </div>
+  </div>
+
+  <table class="api-index">
+    <tbody
+      ><tr>
+        <td>
+          <h2>Environment</h2>
+          <h3>Generic</h3>
+          <p>
+            <a href="#_G">_G</a>
+            <a href="#_VERSION">_VERSION</a>
+            <a href="#assert">assert</a>
+            <a href="#collectgarbage">collectgarbage</a>
+            <a href="#dofile">dofile</a>
+            <a href="#error">error</a>
+            <a href="#fromjson" data-from="lus">fromjson</a>
+            <a href="#getmetatable">getmetatable</a>
+            <a href="#ipairs">ipairs</a>
+            <a href="#load">load</a>
+            <a href="#loadfile">loadfile</a>
+            <a href="#next">next</a>
+            <a href="#pairs">pairs</a>
+            <a data-from="removed">pcall</a>
+            <a href="#print">print</a>
+            <a href="#rawequal">rawequal</a>
+            <a href="#rawget">rawget</a>
+            <a href="#rawlen">rawlen</a>
+            <a href="#rawset">rawset</a>
+            <a href="#require">require</a>
+            <a href="#select">select</a>
+            <a href="#setmetatable">setmetatable</a>
+            <a href="#tojson" data-from="lus">tojson</a>
+            <a href="#tonumber">tonumber</a>
+            <a href="#tostring">tostring</a>
+            <a href="#type">type</a>
+            <a href="#warn">warn</a>
+            <a data-from="removed">xpcall</a>
+          </p>
+          <h3>Coroutine</h3>
+          <p>
+            <a href="#coroutine.close">coroutine.close</a>
+            <a href="#coroutine.create">coroutine.create</a>
+            <a href="#coroutine.detach" data-from="lus-unstable"
+              >coroutine.detach</a
+            >
+            <a href="#coroutine.isyieldable">coroutine.isyieldable</a>
+            <a href="#coroutine.pending" data-from="lus-unstable"
+              >coroutine.pending</a
+            >
+            <a href="#coroutine.poll" data-from="lus-unstable">coroutine.poll</a
+            >
+            <a href="#coroutine.resume">coroutine.resume</a>
+            <a href="#coroutine.running">coroutine.running</a>
+            <a href="#coroutine.sleep" data-from="lus-unstable"
+              >coroutine.sleep</a
+            >
+            <a href="#coroutine.status">coroutine.status</a>
+            <a href="#coroutine.status_e" data-from="lus-unstable"
+              >coroutine.status_e</a
+            >
+            <a href="#coroutine.wrap">coroutine.wrap</a>
+            <a href="#coroutine.yield">coroutine.yield</a>
+          </p>
+          <h3>Debug</h3>
+          <p>
+            <a href="#debug.debug">debug.debug</a>
+            <a href="#debug.gethook">debug.gethook</a>
+            <a href="#debug.getinfo">debug.getinfo</a>
+            <a href="#debug.getlocal">debug.getlocal</a>
+            <a href="#debug.getmetatable">debug.getmetatable</a>
+            <a href="#debug.getregistry">debug.getregistry</a>
+            <a href="#debug.getupvalue">debug.getupvalue</a>
+            <a href="#debug.getuservalue">debug.getuservalue</a>
+            <a href="#debug.sethook">debug.sethook</a>
+            <a href="#debug.setlocal">debug.setlocal</a>
+            <a href="#debug.setmetatable">debug.setmetatable</a>
+            <a href="#debug.setupvalue">debug.setupvalue</a>
+            <a href="#debug.setuservalue">debug.setuservalue</a>
+            <a href="#debug.traceback">debug.traceback</a>
+            <a href="#debug.upvalueid">debug.upvalueid</a>
+            <a href="#debug.upvaluejoin">debug.upvaluejoin</a>
+          </p>
+          <h3>Filesystem</h3>
+          <p>
+            <a href="#fs.copy" data-from="lus">fs.copy</a>
+            <a href="#fs.createdirectory" data-from="lus">fs.createdirectory</a>
+            <a href="#fs.createlink" data-from="lus">fs.createlink</a>
+            <a href="#fs.follow" data-from="lus">fs.follow</a>
+            <a href="#fs.move" data-from="lus">fs.move</a>
+            <a href="#fs.list" data-from="lus">fs.list</a>
+            <a href="#fs.remove" data-from="lus">fs.remove</a>
+            <a href="#fs.type" data-from="lus">fs.type</a>
+          </p>
+          <p>
+            <a href="#fs.path.delimiter" data-from="lus">fs.path.delimiter</a>
+            <a href="#fs.path.join" data-from="lus">fs.path.join</a>
+            <a href="#fs.path.name" data-from="lus">fs.path.name</a>
+            <a href="#fs.path.parent" data-from="lus">fs.path.parent</a>
+            <a href="#fs.path.separator" data-from="lus">fs.path.separator</a>
+            <a href="#fs.path.split" data-from="lus">fs.path.split</a>
+          </p>
+          <h3>IO</h3>
+          <p>
+            <a href="#io.close">io.close</a>
+            <a href="#io.flush">io.flush</a>
+            <a href="#io.input">io.input</a>
+            <a href="#io.lines">io.lines</a>
+            <a href="#io.open">io.open</a>
+            <a href="#io.output">io.output</a>
+            <a href="#io.popen">io.popen</a>
+            <a href="#io.read">io.read</a>
+            <a href="#io.stderr">io.stderr</a>
+            <a href="#io.stdin">io.stdin</a>
+            <a href="#io.stdout">io.stdout</a>
+            <a href="#io.tmpfile">io.tmpfile</a>
+            <a href="#io.type">io.type</a>
+            <a href="#io.write">io.write</a>
+
+            <a href="#file:close">file:close</a>
+            <a href="#file:flush">file:flush</a>
+            <a href="#file:lines">file:lines</a>
+            <a href="#file:read">file:read</a>
+            <a href="#file:seek">file:seek</a>
+            <a href="#file:setvbuf">file:setvbuf</a>
+            <a href="#file:write">file:write</a>
+          </p></td
+        >
+        <td>
+          <h2><br /></h2>
+          <h3>Math</h3>
+          <p>
+            <a href="#math.abs">math.abs</a>
+            <a href="#math.acos">math.acos</a>
+            <a href="#math.asin">math.asin</a>
+            <a href="#math.atan">math.atan</a>
+            <a href="#math.ceil">math.ceil</a>
+            <a href="#math.cos">math.cos</a>
+            <a href="#math.deg">math.deg</a>
+            <a href="#math.exp">math.exp</a>
+            <a href="#math.floor">math.floor</a>
+            <a href="#math.fmod">math.fmod</a>
+            <a href="#math.frexp">math.frexp</a>
+            <a href="#math.huge">math.huge</a>
+            <a href="#math.ldexp">math.ldexp</a>
+            <a href="#math.log">math.log</a>
+            <a href="#math.max">math.max</a>
+            <a href="#math.maxinteger">math.maxinteger</a>
+            <a href="#math.min">math.min</a>
+            <a href="#math.mininteger">math.mininteger</a>
+            <a href="#math.modf">math.modf</a>
+            <a href="#math.pi">math.pi</a>
+            <a href="#math.rad">math.rad</a>
+            <a href="#math.random">math.random</a>
+            <a href="#math.randomseed">math.randomseed</a>
+            <a href="#math.sin">math.sin</a>
+            <a href="#math.sqrt">math.sqrt</a>
+            <a href="#math.tan">math.tan</a>
+            <a href="#math.tointeger">math.tointeger</a>
+            <a href="#math.type">math.type</a>
+            <a href="#math.ult">math.ult</a>
+          </p>
+          <h3>Network</h3>
+          <p>
+            <a href="#network.fetch" data-from="lus-unstable">network.fetch</a>
+            <a href="#network.tcp.bind" data-from="lus-unstable"
+              >network.tcp.bind</a
+            >
+            <a href="#network.tcp.connect" data-from="lus-unstable"
+              >network.tcp.connect</a
+            >
+            <a href="#network.udp.open" data-from="lus-unstable"
+              >network.udp.open</a
+            >
+
+            <a href="#server:accept" data-from="lus-unstable">server:accept</a>
+            <a href="#server:close" data-from="lus-unstable">server:close</a>
+            <a href="#server:settimeout" data-from="lus-unstable"
+              >server:settimeout</a
+            >
+
+            <a href="#socket:close" data-from="lus-unstable">socket:close</a>
+            <a href="#socket:receive" data-from="lus-unstable">socket:receive</a
+            >
+            <a href="#socket:send" data-from="lus-unstable">socket:send</a>
+            <a href="#socket:settimeout" data-from="lus-unstable"
+              >socket:settimeout</a
+            >
+
+            <a href="#udp:close" data-from="lus-unstable">udp:close</a>
+            <a href="#udp:receive" data-from="lus-unstable">udp:receive</a>
+            <a href="#udp:sendto" data-from="lus-unstable">udp:sendto</a>
+          </p>
+          <h3>OS</h3>
+          <p>
+            <a href="#os.clock">os.clock</a>
+            <a href="#os.date">os.date</a>
+            <a href="#os.difftime">os.difftime</a>
+            <a href="#os.execute">os.execute</a>
+            <a href="#os.exit">os.exit</a>
+            <a href="#os.getenv">os.getenv</a>
+            <a data-from="removed">os.remove</a>
+            <a data-from="removed">os.rename</a>
+            <a data-from="lus" href="#os.platform">os.platform</a>
+            <a href="#os.setlocale">os.setlocale</a>
+            <a href="#os.time">os.time</a>
+            <a href="#os.tmpname">os.tmpname</a>
+          </p>
+          <h3>Package</h3>
+          <p>
+            <a href="#package.config">package.config</a>
+            <a href="#package.cpath">package.cpath</a>
+            <a href="#package.loaded">package.loaded</a>
+            <a href="#package.loadlib">package.loadlib</a>
+            <a href="#package.path">package.path</a>
+            <a href="#package.preload">package.preload</a>
+            <a href="#package.searchers">package.searchers</a>
+            <a href="#package.searchpath">package.searchpath</a>
+          </p>
+          <h3>String</h3>
+          <p>
+            <a href="#string.byte">string.byte</a>
+            <a href="#string.char">string.char</a>
+            <a href="#string.dump">string.dump</a>
+            <a href="#string.find">string.find</a>
+            <a href="#string.format">string.format</a>
+            <a href="#string.gmatch">string.gmatch</a>
+            <a href="#string.gsub">string.gsub</a>
+            <a href="#string.len">string.len</a>
+            <a href="#string.lower">string.lower</a>
+            <a href="#string.match">string.match</a>
+            <a href="#string.pack">string.pack</a>
+            <a href="#string.packsize">string.packsize</a>
+            <a href="#string.rep">string.rep</a>
+            <a href="#string.reverse">string.reverse</a>
+            <a href="#string.sub">string.sub</a>
+            <a data-from="lus-unstable" href="#string.transcode"
+              >string.transcode</a
+            >
+            <a href="#string.unpack">string.unpack</a>
+            <a href="#string.upper">string.upper</a>
+          </p>
+          <h3>Table</h3>
+          <p>
+            <a href="#table.concat">table.concat</a>
+            <a href="#table.create">table.create</a>
+            <a href="#table.insert">table.insert</a>
+            <a href="#table.move">table.move</a>
+            <a href="#table.pack">table.pack</a>
+            <a href="#table.remove">table.remove</a>
+            <a href="#table.sort">table.sort</a>
+            <a href="#table.unpack">table.unpack</a>
+          </p>
+          <h3>UTF-8</h3>
+          <p>
+            <a href="#utf8.char">utf8.char</a>
+            <a href="#utf8.charpattern">utf8.charpattern</a>
+            <a href="#utf8.codepoint">utf8.codepoint</a>
+            <a href="#utf8.codes">utf8.codes</a>
+            <a href="#utf8.len">utf8.len</a>
+            <a href="#utf8.offset">utf8.offset</a>
+          </p>
+          <h3>Metamethods</h3>
+          <p>
+            <a href="#metamethods">__add</a>
+            <a href="#metamethods">__band</a>
+            <a href="#metamethods">__bnot</a>
+            <a href="#metamethods">__bor</a>
+            <a href="#metamethods">__bxor</a>
+            <a href="#metamethods">__call</a>
+            <a href="#metamethods_close">__close</a>
+            <a href="#metamethods">__concat</a>
+            <a href="#metamethods">__div</a>
+            <a href="#metamethods">__eq</a>
+            <a href="#metamethods_gc">__gc</a>
+            <a href="#metamethods">__idiv</a>
+            <a href="#metamethods">__index</a>
+            <a href="#tojson" data-from="lus">__json</a>
+            <a href="#metamethods">__le</a>
+            <a href="#metamethods">__len</a>
+            <a href="#metamethods">__lt</a>
+            <a href="#getmetatable">__metatable</a>
+            <a href="#metamethods">__mod</a>
+            <a href="#metamethods_mode">__mode</a>
+            <a href="#metamethods">__mul</a>
+            <a href="#luaL_newmetatable">__name</a>
+            <a href="#metamethods">__newindex</a>
+            <a href="#pairs">__pairs</a>
+            <a href="#metamethods">__pow</a>
+            <a href="#metamethods">__shl</a>
+            <a href="#metamethods">__shr</a>
+            <a href="#metamethods">__sub</a>
+            <a href="#tostring">__tostring</a>
+            <a href="#metamethods">__unm</a>
+          </p>
+          <h3>Environment variables</h3>
+          <p>
+            <a href="#LUA_CPATH">LUA_CPATH</a>
+            <a href="#LUA_CPATH_5_5">LUA_CPATH_5_5</a>
+            <a href="#LUA_INIT">LUA_INIT</a>
+            <a href="#LUA_INIT_5_5">LUA_INIT_5_5</a>
+            <a href="#LUA_PATH">LUA_PATH</a>
+            <a href="#LUA_PATH_5_5">LUA_PATH_5_5</a>
+          </p></td
+        >
+        <td>
+          <h2>C API</h2>
+          <h3>Main library</h3>
+          <p>
+            <a href="#lua_Alloc">lua_Alloc</a>
+            <a href="#lua_CFunction">lua_CFunction</a>
+            <a href="#lua_Debug">lua_Debug</a>
+            <a href="#lua_Hook">lua_Hook</a>
+            <a href="#lua_Integer">lua_Integer</a>
+            <a href="#lua_KContext">lua_KContext</a>
+            <a href="#lua_KFunction">lua_KFunction</a>
+            <a href="#lua_Number">lua_Number</a>
+            <a href="#lua_Reader">lua_Reader</a>
+            <a href="#lua_State">lua_State</a>
+            <a href="#lua_Unsigned">lua_Unsigned</a>
+            <a href="#lua_WarnFunction">lua_WarnFunction</a>
+            <a href="#lua_Writer">lua_Writer</a>
+          </p><p>
+            <a href="#lua_absindex">lua_absindex</a>
+            <a href="#lua_arith">lua_arith</a>
+            <a href="#lua_atpanic">lua_atpanic</a>
+            <a href="#lua_call">lua_call</a>
+            <a href="#lua_callk">lua_callk</a>
+            <a href="#lua_checkstack">lua_checkstack</a>
+            <a href="#lua_close">lua_close</a>
+            <a href="#lua_closeslot">lua_closeslot</a>
+            <a href="#lua_closethread">lua_closethread</a>
+            <a href="#lua_compare">lua_compare</a>
+            <a href="#lua_concat">lua_concat</a>
+            <a href="#lua_copy">lua_copy</a>
+            <a href="#lua_createtable">lua_createtable</a>
+            <a href="#lua_dump">lua_dump</a>
+            <a href="#lua_error">lua_error</a>
+            <a href="#lua_gc">lua_gc</a>
+            <a href="#lua_getallocf">lua_getallocf</a>
+            <a href="#lua_getextraspace">lua_getextraspace</a>
+            <a href="#lua_getfield">lua_getfield</a>
+            <a href="#lua_getglobal">lua_getglobal</a>
+            <a href="#lua_gethook">lua_gethook</a>
+            <a href="#lua_gethookcount">lua_gethookcount</a>
+            <a href="#lua_gethookmask">lua_gethookmask</a>
+            <a href="#lua_geti">lua_geti</a>
+            <a href="#lua_getinfo">lua_getinfo</a>
+            <a href="#lua_getiuservalue">lua_getiuservalue</a>
+            <a href="#lua_getlocal">lua_getlocal</a>
+            <a href="#lua_getmetatable">lua_getmetatable</a>
+            <a href="#lua_getstack">lua_getstack</a>
+            <a href="#lua_gettable">lua_gettable</a>
+            <a href="#lua_gettop">lua_gettop</a>
+            <a href="#lua_getupvalue">lua_getupvalue</a>
+            <a href="#lua_insert">lua_insert</a>
+            <a href="#lua_isboolean">lua_isboolean</a>
+            <a href="#lua_iscfunction">lua_iscfunction</a>
+            <a href="#lua_isenum" data-from="lus">lua_isenum</a>
+            <a href="#lua_isfunction">lua_isfunction</a>
+            <a href="#lua_isinteger">lua_isinteger</a>
+            <a href="#lua_islightuserdata">lua_islightuserdata</a>
+            <a href="#lua_isnil">lua_isnil</a>
+            <a href="#lua_isnone">lua_isnone</a>
+            <a href="#lua_isnoneornil">lua_isnoneornil</a>
+            <a href="#lua_isnumber">lua_isnumber</a>
+            <a href="#lua_isstring">lua_isstring</a>
+            <a href="#lua_istable">lua_istable</a>
+            <a href="#lua_isthread">lua_isthread</a>
+            <a href="#lua_isuserdata">lua_isuserdata</a>
+            <a href="#lua_isyieldable">lua_isyieldable</a>
+            <a href="#lua_len">lua_len</a>
+            <a href="#lua_load">lua_load</a>
+            <a href="#lua_newstate">lua_newstate</a>
+            <a href="#lua_newtable">lua_newtable</a>
+            <a href="#lua_newthread">lua_newthread</a>
+            <a href="#lua_newuserdatauv">lua_newuserdatauv</a>
+            <a href="#lua_next">lua_next</a>
+            <a href="#lua_numbertocstring">lua_numbertocstring</a>
+            <a href="#lua_numbertointeger">lua_numbertointeger</a>
+            <a href="#lua_pcall">lua_pcall</a>
+            <a href="#lua_pcallk">lua_pcallk</a>
+            <a href="#lua_pop">lua_pop</a>
+            <a href="#lua_pushboolean">lua_pushboolean</a>
+            <a href="#lua_pushcclosure">lua_pushcclosure</a>
+            <a href="#lua_pushcfunction">lua_pushcfunction</a>
+            <a href="#lua_pushenum" data-from="lus">lua_pushenum</a>
+            <a href="#lua_pushexternalstring">lua_pushexternalstring</a>
+            <a href="#lua_pushfstring">lua_pushfstring</a>
+            <a href="#lua_pushglobaltable">lua_pushglobaltable</a>
+            <a href="#lua_pushinteger">lua_pushinteger</a>
+            <a href="#lua_pushlightuserdata">lua_pushlightuserdata</a>
+            <a href="#lua_pushliteral">lua_pushliteral</a>
+            <a href="#lua_pushlstring">lua_pushlstring</a>
+            <a href="#lua_pushnil">lua_pushnil</a>
+            <a href="#lua_pushnumber">lua_pushnumber</a>
+            <a href="#lua_pushstring">lua_pushstring</a>
+            <a href="#lua_pushthread">lua_pushthread</a>
+            <a href="#lua_pushvalue">lua_pushvalue</a>
+            <a href="#lua_pushvfstring">lua_pushvfstring</a>
+            <a href="#lua_rawequal">lua_rawequal</a>
+            <a href="#lua_rawget">lua_rawget</a>
+            <a href="#lua_rawgeti">lua_rawgeti</a>
+            <a href="#lua_rawgetp">lua_rawgetp</a>
+            <a href="#lua_rawlen">lua_rawlen</a>
+            <a href="#lua_rawset">lua_rawset</a>
+            <a href="#lua_rawseti">lua_rawseti</a>
+            <a href="#lua_rawsetp">lua_rawsetp</a>
+            <a href="#lua_register">lua_register</a>
+            <a href="#lua_remove">lua_remove</a>
+            <a href="#lua_replace">lua_replace</a>
+            <a href="#lua_resume">lua_resume</a>
+            <a href="#lua_rotate">lua_rotate</a>
+            <a href="#lua_setallocf">lua_setallocf</a>
+            <a href="#lua_setfield">lua_setfield</a>
+            <a href="#lua_setglobal">lua_setglobal</a>
+            <a href="#lua_sethook">lua_sethook</a>
+            <a href="#lua_seti">lua_seti</a>
+            <a href="#lua_setiuservalue">lua_setiuservalue</a>
+            <a href="#lua_setlocal">lua_setlocal</a>
+            <a href="#lua_setmetatable">lua_setmetatable</a>
+            <a href="#lua_settable">lua_settable</a>
+            <a href="#lua_settop">lua_settop</a>
+            <a href="#lua_setupvalue">lua_setupvalue</a>
+            <a href="#lua_setwarnf">lua_setwarnf</a>
+            <a href="#lua_status">lua_status</a>
+            <a href="#lua_stringtonumber">lua_stringtonumber</a>
+            <a href="#lua_toboolean">lua_toboolean</a>
+            <a href="#lua_tocfunction">lua_tocfunction</a>
+            <a href="#lua_toclose">lua_toclose</a>
+            <a href="#lua_toenumidx" data-from="lus">lua_toenumidx</a>
+            <a href="#lua_tointeger">lua_tointeger</a>
+            <a href="#lua_tointegerx">lua_tointegerx</a>
+            <a href="#lua_tolstring">lua_tolstring</a>
+            <a href="#lua_tonumber">lua_tonumber</a>
+            <a href="#lua_tonumberx">lua_tonumberx</a>
+            <a href="#lua_topointer">lua_topointer</a>
+            <a href="#lua_tostring">lua_tostring</a>
+            <a href="#lua_tothread">lua_tothread</a>
+            <a href="#lua_touserdata">lua_touserdata</a>
+            <a href="#lua_type">lua_type</a>
+            <a href="#lua_typename">lua_typename</a>
+            <a href="#lua_upvalueid">lua_upvalueid</a>
+            <a href="#lua_upvalueindex">lua_upvalueindex</a>
+            <a href="#lua_upvaluejoin">lua_upvaluejoin</a>
+            <a href="#lua_version">lua_version</a>
+            <a href="#lua_warning">lua_warning</a>
+            <a href="#lua_xmove">lua_xmove</a>
+            <a href="#lua_yield">lua_yield</a>
+            <a href="#lua_yieldk">lua_yieldk</a>
+          </p></td
+        >
+        <td>
+          <h2><br /></h2>
+          <h3>Auxiliary library</h3>
+          <p>
+            <a href="#luaL_Buffer">luaL_Buffer</a>
+            <a href="#luaL_Reg">luaL_Reg</a>
+            <a href="#luaL_Stream">luaL_Stream</a>
+          </p><p>
+            <a href="#luaL_addchar">luaL_addchar</a>
+            <a href="#luaL_addgsub">luaL_addgsub</a>
+            <a href="#luaL_addlstring">luaL_addlstring</a>
+            <a href="#luaL_addsize">luaL_addsize</a>
+            <a href="#luaL_addstring">luaL_addstring</a>
+            <a href="#luaL_addvalue">luaL_addvalue</a>
+            <a href="#luaL_alloc">luaL_alloc</a>
+            <a href="#luaL_argcheck">luaL_argcheck</a>
+            <a href="#luaL_argerror">luaL_argerror</a>
+            <a href="#luaL_argexpected">luaL_argexpected</a>
+            <a href="#luaL_buffaddr">luaL_buffaddr</a>
+            <a href="#luaL_buffinit">luaL_buffinit</a>
+            <a href="#luaL_buffinitsize">luaL_buffinitsize</a>
+            <a href="#luaL_bufflen">luaL_bufflen</a>
+            <a href="#luaL_buffsub">luaL_buffsub</a>
+            <a href="#luaL_callmeta">luaL_callmeta</a>
+            <a href="#luaL_checkany">luaL_checkany</a>
+            <a href="#luaL_checkinteger">luaL_checkinteger</a>
+            <a href="#luaL_checklstring">luaL_checklstring</a>
+            <a href="#luaL_checknumber">luaL_checknumber</a>
+            <a href="#luaL_checkoption">luaL_checkoption</a>
+            <a href="#luaL_checkstack">luaL_checkstack</a>
+            <a href="#luaL_checkstring">luaL_checkstring</a>
+            <a href="#luaL_checktype">luaL_checktype</a>
+            <a href="#luaL_checkudata">luaL_checkudata</a>
+            <a href="#luaL_checkversion">luaL_checkversion</a>
+            <a href="#luaL_dofile">luaL_dofile</a>
+            <a href="#luaL_dostring">luaL_dostring</a>
+            <a href="#luaL_error">luaL_error</a>
+            <a href="#luaL_execresult">luaL_execresult</a>
+            <a href="#luaL_fileresult">luaL_fileresult</a>
+            <a href="#luaL_getmetafield">luaL_getmetafield</a>
+            <a href="#luaL_getmetatable">luaL_getmetatable</a>
+            <a href="#luaL_getsubtable">luaL_getsubtable</a>
+            <a href="#luaL_gsub">luaL_gsub</a>
+            <a href="#luaL_len">luaL_len</a>
+            <a href="#luaL_loadbuffer">luaL_loadbuffer</a>
+            <a href="#luaL_loadbufferx">luaL_loadbufferx</a>
+            <a href="#luaL_loadfile">luaL_loadfile</a>
+            <a href="#luaL_loadfilex">luaL_loadfilex</a>
+            <a href="#luaL_loadstring">luaL_loadstring</a>
+            <a href="#luaL_makeseed">luaL_makeseed</a>
+            <a href="#luaL_newlib">luaL_newlib</a>
+            <a href="#luaL_newlibtable">luaL_newlibtable</a>
+            <a href="#luaL_newmetatable">luaL_newmetatable</a>
+            <a href="#luaL_newstate">luaL_newstate</a>
+            <a href="#luaL_openlibs">luaL_openlibs</a>
+            <a href="#luaL_openselectedlibs">luaL_openselectedlibs</a>
+            <a href="#luaL_opt">luaL_opt</a>
+            <a href="#luaL_optinteger">luaL_optinteger</a>
+            <a href="#luaL_optlstring">luaL_optlstring</a>
+            <a href="#luaL_optnumber">luaL_optnumber</a>
+            <a href="#luaL_optstring">luaL_optstring</a>
+            <a href="#luaL_prepbuffer">luaL_prepbuffer</a>
+            <a href="#luaL_prepbuffsize">luaL_prepbuffsize</a>
+            <a href="#luaL_pushfail">luaL_pushfail</a>
+            <a href="#luaL_pushresult">luaL_pushresult</a>
+            <a href="#luaL_pushresultsize">luaL_pushresultsize</a>
+            <a href="#luaL_ref">luaL_ref</a>
+            <a href="#luaL_requiref">luaL_requiref</a>
+            <a href="#luaL_setfuncs">luaL_setfuncs</a>
+            <a href="#luaL_setmetatable">luaL_setmetatable</a>
+            <a href="#luaL_testudata">luaL_testudata</a>
+            <a href="#luaL_tolstring">luaL_tolstring</a>
+            <a href="#luaL_traceback">luaL_traceback</a>
+            <a href="#luaL_typeerror">luaL_typeerror</a>
+            <a href="#luaL_typename">luaL_typename</a>
+            <a href="#luaL_unref">luaL_unref</a>
+            <a href="#luaL_where">luaL_where</a>
+          </p>
+          <h3>Library openers</h3>
+          <p>
+            <a href="#luaopen_base">luaopen_base</a>
+            <a href="#luaopen_coroutine">luaopen_coroutine</a>
+            <a href="#luaopen_debug">luaopen_debug</a>
+            <a href="#luaopen_io">luaopen_io</a>
+            <a href="#luaopen_math">luaopen_math</a>
+            <a href="#luaopen_os">luaopen_os</a>
+            <a href="#luaopen_package">luaopen_package</a>
+            <a href="#luaopen_string">luaopen_string</a>
+            <a href="#luaopen_table">luaopen_table</a>
+            <a href="#luaopen_utf8">luaopen_utf8</a>
+            <a href="#luaopen_fs" data-from="lus">luaopen_fs</a>
+            <a href="#luaopen_json" data-from="lus">luaopen_json</a>
+            <a href="#luaopen_network" data-from="lus-unstable"
+              >luaopen_network</a
+            >
+          </p>
+          <h3>Constants</h3>
+          <p>
+            <a href="#LUA_ERRERR">LUA_ERRERR</a>
+            <a href="#LUA_ERRFILE">LUA_ERRFILE</a>
+            <a href="#LUA_ERRMEM">LUA_ERRMEM</a>
+            <a href="#LUA_ERRRUN">LUA_ERRRUN</a>
+            <a href="#LUA_ERRSYNTAX">LUA_ERRSYNTAX</a>
+            <a href="#LUA_HOOKCALL">LUA_HOOKCALL</a>
+            <a href="#LUA_HOOKCOUNT">LUA_HOOKCOUNT</a>
+            <a href="#LUA_HOOKLINE">LUA_HOOKLINE</a>
+            <a href="#LUA_HOOKRET">LUA_HOOKRET</a>
+            <a href="#LUA_HOOKTAILCALL">LUA_HOOKTAILCALL</a>
+            <a href="#LUA_LOADED_TABLE">LUA_LOADED_TABLE</a>
+            <a href="#LUA_MASKCALL">LUA_MASKCALL</a>
+            <a href="#LUA_MASKCOUNT">LUA_MASKCOUNT</a>
+            <a href="#LUA_MASKLINE">LUA_MASKLINE</a>
+            <a href="#LUA_MASKRET">LUA_MASKRET</a>
+            <a href="#LUA_MAXINTEGER">LUA_MAXINTEGER</a>
+            <a href="#LUA_MININTEGER">LUA_MININTEGER</a>
+            <a href="#LUA_MINSTACK">LUA_MINSTACK</a>
+            <a href="#LUA_MULTRET">LUA_MULTRET</a>
+            <a href="#LUA_NOREF">LUA_NOREF</a>
+            <a href="#LUA_OK">LUA_OK</a>
+            <a href="#LUA_OPADD">LUA_OPADD</a>
+            <a href="#LUA_OPBAND">LUA_OPBAND</a>
+            <a href="#LUA_OPBNOT">LUA_OPBNOT</a>
+            <a href="#LUA_OPBOR">LUA_OPBOR</a>
+            <a href="#LUA_OPBXOR">LUA_OPBXOR</a>
+            <a href="#LUA_OPDIV">LUA_OPDIV</a>
+            <a href="#LUA_OPEQ">LUA_OPEQ</a>
+            <a href="#LUA_OPIDIV">LUA_OPIDIV</a>
+            <a href="#LUA_OPLE">LUA_OPLE</a>
+            <a href="#LUA_OPLT">LUA_OPLT</a>
+            <a href="#LUA_OPMOD">LUA_OPMOD</a>
+            <a href="#LUA_OPMUL">LUA_OPMUL</a>
+            <a href="#LUA_OPPOW">LUA_OPPOW</a>
+            <a href="#LUA_OPSHL">LUA_OPSHL</a>
+            <a href="#LUA_OPSHR">LUA_OPSHR</a>
+            <a href="#LUA_OPSUB">LUA_OPSUB</a>
+            <a href="#LUA_OPUNM">LUA_OPUNM</a>
+            <a href="#LUA_PRELOAD_TABLE">LUA_PRELOAD_TABLE</a>
+            <a href="#LUA_REFNIL">LUA_REFNIL</a>
+            <a href="#LUA_REGISTRYINDEX">LUA_REGISTRYINDEX</a>
+            <a href="#LUA_RIDX_GLOBALS">LUA_RIDX_GLOBALS</a>
+            <a href="#LUA_RIDX_MAINTHREAD">LUA_RIDX_MAINTHREAD</a>
+            <a href="#LUA_TBOOLEAN">LUA_TBOOLEAN</a>
+            <a href="#LUA_TFUNCTION">LUA_TFUNCTION</a>
+            <a href="#LUA_TLIGHTUSERDATA">LUA_TLIGHTUSERDATA</a>
+            <a href="#LUA_TNIL">LUA_TNIL</a>
+            <a href="#LUA_TNONE">LUA_TNONE</a>
+            <a href="#LUA_TNUMBER">LUA_TNUMBER</a>
+            <a href="#LUA_TENUM" data-from="lus">LUA_TENUM</a>
+            <a href="#LUA_TSTRING">LUA_TSTRING</a>
+            <a href="#LUA_TTABLE">LUA_TTABLE</a>
+            <a href="#LUA_TTHREAD">LUA_TTHREAD</a>
+            <a href="#LUA_TUSERDATA">LUA_TUSERDATA</a>
+            <a href="#LUA_USE_APICHECK">LUA_USE_APICHECK</a>
+            <a href="#LUA_YIELD">LUA_YIELD</a>
+            <a href="#LUAL_BUFFERSIZE">LUAL_BUFFERSIZE</a>
+          </p></td
+        >
+      </tr>
+    </tbody>
+  </table>
+</ManualLayout>

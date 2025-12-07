@@ -1,0 +1,74 @@
+---
+import Layout from "./Layout.astro"
+import { getCollection } from "astro:content"
+interface Props {
+  title: string
+  unstable?: boolean
+}
+const { title, unstable } = Astro.props
+
+const manual = await getCollection("manual")
+const acquis = manual
+  .filter((p) => p.data.acquis)
+  .toSorted((a, b) => a.data.order - b.data.order)
+---
+
+<Layout title={title} unstable={unstable}>
+  <main>
+    <section class="flex flex-col-reverse lg:flex-row gap-8">
+      <aside>
+        {
+          manual
+            .filter((page) => !page.data.acquis)
+            .toSorted((a, b) => a.data.order - b.data.order)
+            .map((page) => <a href={`/manual/${page.id}`}>{page.data.title}</a>)
+        }
+        <a href="/manual/api">API</a>
+        {manual.some((page) => page.data.acquis) && <br />}
+        {
+          manual
+            .filter((page) => page.data.acquis)
+            .toSorted((a, b) => a.data.order - b.data.order)
+            .map((p) => (
+              <a
+                class:list={["acquis", { draft: p.data.draft }]}
+                href={`/manual/${p.id}`}
+              >
+                {p.data.title}
+              </a>
+            ))
+        }
+      </aside>
+      <article class="flex-1 min-w-0">
+        <slot />
+      </article>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  @reference "../styles/global.css";
+
+  :global(hr) {
+    @apply my-4 text-lime-800;
+  }
+
+  article {
+    @apply space-y-2;
+  }
+
+  aside {
+    @apply min-w-48 w-1/6;
+    a {
+      @apply block;
+
+      &.acquis {
+        @apply bg-lime-200 text-xs font-mono;
+
+        &.draft {
+          @apply bg-red-200 text-red-800;
+        }
+      }
+    }
+  }
+</style>
