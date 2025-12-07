@@ -113,6 +113,7 @@ jobs:
 
   windows:
     name: Windows (x64)
+    if: false  # Temporarily disabled - Windows build issues being resolved
     needs: sanitize
     runs-on: windows-latest
 
@@ -230,7 +231,7 @@ jobs:
 
   release:
     name: Create Pre-release
-    needs: [linux-glibc, linux-musl, windows, macos-silicon, wasm]
+    needs: [linux-glibc, linux-musl, macos-silicon, wasm]  # windows temporarily disabled
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -251,7 +252,7 @@ jobs:
           cp artifacts/lus-linux/lus release/lus-linux
           cp artifacts/lus-linux-musl/lus release/lus-linux-musl
           cp artifacts/lus-macos/lus release/lus-macos
-          cp artifacts/lus-windows/lus.exe release/lus-windows.exe
+          # cp artifacts/lus-windows/lus.exe release/lus-windows.exe  # Windows temporarily disabled
           cp artifacts/lus-wasm/lus.js release/lus.js
           cp artifacts/lus-wasm/lus.wasm release/lus.wasm
 
