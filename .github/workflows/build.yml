@@ -128,11 +128,13 @@ jobs:
       - name: Setup Meson
         run: pip install meson
 
-      - name: Install vcpkg and dependencies
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git
-          .\vcpkg\bootstrap-vcpkg.bat
-          .\vcpkg\vcpkg install openssl:x64-windows c-ares:x64-windows pkgconf:x64-windows
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 'a7b6122f6b6504d16d96117336a0562693579933'
+          runVcpkgInstall: true
+        env:
+          VCPKG_DEFAULT_TRIPLET: x64-windows
 
       - name: Build
         env:
