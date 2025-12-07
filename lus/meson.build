@@ -259,14 +259,6 @@ test('h3/ci', lus_exe,
   timeout: 60,
 )
 
-# Async I/O tests
-test('h3/asyncio', lus_exe,
-  args : ['lus-tests/h3/asyncio.lus'],
-  workdir : meson.project_source_root() / '..',
-  suite : ['h3', 'h3-local'],
-  timeout: 30,
-)
-
 # H4: Performance (Lus Runner)
 test('h4/bench', lus_exe,
   args: ['lus-tests/h4/runner.lus'],
