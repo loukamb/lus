@@ -1,0 +1,29 @@
+---
+order: 5
+title: Releases
+---
+
+Lus releases are produced by a release engineering process, which divide into two channels:
+
+- The **stable** channel, which is well-tested and ready for production use.
+- The **unstable** channel, which contains the latest features.
+
+_Unstable_ does not necessarily mean that they are _literally_ unstable, but rather that they have not been thoroughly tested, are still open to breaking changes, and may be unpredictable when used in production; you really _shouldn't_ use unstable builds in production, even if you really need a feature that is not yet in the stable build. However, for personal scripting or recreational programming, you can probably use the unstable build without any problems.
+
+## Stable releases
+
+There is no timeline for stable releases, but they are typically released when all work-in-progress [acquis](/manual/acquis-0) have been completed and they received sufficient harness tests. Stable releases may be released with only a few days between them, or they take several months (or even years) to complete. It all depends on the completion of the acquis and the sufficiency of the harness tests.
+
+The attribution of acquis to a release is dependent on when the acquis has been submitted. If, for example, version X.0.0 is being worked on, then any acquis submitted during this time will be slated for version X.**1**.0. There is no upper limit as to how many acquis can be submitted for a given release, but if there are too many, then they may be slated for a future release.
+
+Even though semantic versioning is used, the patch number is expected to go unused. The harness tests are exhaustive and should cover all runtime features and edge cases. If, however, a very critical bug is found, then the patch number may be used to indicate an emergency bug fix release.
+
+**Developers should use the stable release of Lus for production use.**
+
+## Unstable releases
+
+Unstable releases are released more frequently than stable releases, and usually contain the latest features. For all intents and purposes, the term _unstable_ is interchangeable with _canary_ or _nightly_ builds, especially as they are built on a continuous integration (CI) pipeline.
+
+There is no guarantee that the unstable release will be useable, compatible with code targeting the stable release, or free of platform-specific oddities. It could be that it straight up does not work. Unstable releases are not as thoroughly tested as stable releases and shouldn't be considered reliable, _especially_ for production use. While unstable builds _are_ subjected to the harness tests of their predecessor builds, and CI will not deliver artifacts if they fail, good performance on tests involving stabilized features does not mean that you should use the unstable build in production.
+
+That said, the use of unstable builds in a testing capacity is encouraged. If you are working on a program that already makes use of Lus, and a new unstable build has been released, you should use the unstable build to test your program against the latest features and bug fixes to see if any breaking changes have been introduced, and also as an extra _real-world_ test. If anything unexpected happens that isn't already reported, you should report it so that it can be fixed.
