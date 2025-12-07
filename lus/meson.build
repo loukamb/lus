@@ -2,7 +2,7 @@ project('lus', 'c',
   version: '1.2.0',
   default_options: [
     'c_std=gnu11',
-    'warning_level=3',
+    'warning_level=2',
     'optimization=2',
     'b_lto=true',
     'b_ndebug=if-release',
@@ -17,10 +17,7 @@ m_dep = cc.find_library('m', required: false)
 # Platform detection and configuration
 system = host_machine.system()
 
-# Suppress warnings for GNU extensions used in VM computed goto dispatch
-lus_c_args = cc.get_supported_arguments(
-  '-Wno-gnu-label-as-value',
-)
+lus_c_args = []
 lus_link_args = []
 lus_deps = [m_dep]
 
