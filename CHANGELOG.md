@@ -1,5 +1,18 @@
 # Changelog
 
+## Lus 1.2.0
+
+**Release date:** December 6, 2025
+
+- Added `fs` library for operating around the file system.
+- Removed `os.rename` in favor of `fs.move`.
+- Removed `os.remove` in favor of `fs.remove`.
+- Fixed incorrect version strings.
+- Fixed H3 test harness not running.
+- Fixed `catch` erroring when parsed as a statement.
+- H1 JSON test now includes the RFC8259 dataset.
+- H1 JSON test now makes use of `fs` library.
+
 ## 1.1.0
 
 **Release date:** December 6, 2025
@@ -24,15 +37,6 @@
 - Removed `pcall` and `xpcall` in favor of `catch`.
 - Upgraded the build system from `make` to `meson`.
 
-## Lus 1.2.0 (**WIP**)
+## Lus 1.3.0 (**WIP**)
 
 **Release date:** TBD
-
-- Added `fs` library for operating around the file system.
-- Removed `os.rename` in favor of `fs.move`.
-- Removed `os.remove` in favor of `fs.remove`.
-- Fixed incorrect version strings.
-- Fixed H3 test harness not running.
-- Fixed `catch` erroring when parsed as a statement.
-- H1 JSON test now includes the RFC8259 dataset.
-- H1 JSON test now makes use of `fs` library.
