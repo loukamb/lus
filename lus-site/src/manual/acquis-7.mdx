@@ -1,0 +1,263 @@
+---
+order: 107
+title: Acquis 7 - Filesystem
+acquis: true
+---
+
+The `fs` library provides cross-platform filesystem operations. It exposes a global `fs` table with functions for file manipulation, directory operations, symlinks, and path utilities.
+
+## Listing directories
+
+Use `fs.list` to get an array of filenames in a directory:
+
+```lua
+local files = fs.list(".")
+for i = 1, #files do
+    print(files[i])
+end
+```
+
+Filter results with glob patterns:
+
+```lua
+local lua_files = fs.list("src", "*.lua")
+local configs = fs.list(".", "config?.json")
+```
+
+The patterns support `*` (match any characters) and `?` (match single character).
+
+## File type inspection
+
+Use `fs.type` to determine if a path is a file or directory:
+
+```lua
+local t, is_link = fs.type("myfile.txt")
+assert(t == "file")
+assert(is_link == false)
+
+local t2, is_link2 = fs.type("mydir")
+assert(t2 == "directory")
+```
+
+The second return value indicates whether the path is a symbolic link.
+
+## Copying files
+
+Use `fs.copy` to copy a file:
+
+```lua
+fs.copy("original.txt", "backup.txt")
+```
+
+The operation fails if the destination already exists:
+
+```lua
+local ok = catch fs.copy("src.txt", "existing.txt")
+assert(not ok)  -- error: target already exists
+```
+
+## Moving and renaming
+
+Use `fs.move` to move or rename files and directories:
+
+```lua
+fs.move("old_name.txt", "new_name.txt")
+fs.move("file.txt", "subdir/file.txt")
+```
+
+Like `fs.copy`, it fails if the destination exists:
+
+```lua
+local ok = catch fs.move("a.txt", "b.txt")  -- fails if b.txt exists
+```
+
+## Removing files and directories
+
+Use `fs.remove` to delete files or empty directories:
+
+```lua
+fs.remove("unwanted.txt")
+fs.remove("empty_dir")
+```
+
+For non-empty directories, pass `true` as the second argument:
+
+```lua
+fs.remove("project_dir", true)  -- recursive delete
+```
+
+The recursive remove safely handles symlinks without following them.
+
+## Creating directories
+
+Use `fs.createdirectory` to create a new directory:
+
+```lua
+fs.createdirectory("new_folder")
+```
+
+By default, the parent directory must exist:
+
+```lua
+local ok = catch fs.createdirectory("nonexistent/child")
+assert(not ok)  -- error: parent does not exist
+```
+
+Pass `true` as the second argument to create parent directories automatically:
+
+```lua
+fs.createdirectory("a/b/c/d", true)  -- creates a, a/b, a/b/c, and a/b/c/d
+```
+
+With recursive mode, existing directories are silently skipped:
+
+```lua
+fs.createdirectory("existing_dir", true)  -- no error
+```
+
+## Symbolic links
+
+Create symbolic links with `fs.createlink`:
+
+```lua
+fs.createlink("shortcut", "path/to/target")
+```
+
+Read where a symlink points with `fs.follow`:
+
+```lua
+local target = fs.follow("shortcut")
+print(target)  -- "path/to/target"
+```
+
+## Path manipulation
+
+The `fs.path` subtable provides path utilities.
+
+### Joining paths
+
+Use `fs.path.join` to combine path components:
+
+```lua
+local path = fs.path.join("dir", "subdir", "file.txt")
+-- "dir/subdir/file.txt" on Unix
+-- "dir\subdir\file.txt" on Windows
+```
+
+Absolute paths in later arguments replace earlier components:
+
+```lua
+local path = fs.path.join("relative", "/absolute")
+assert(path == "/absolute")
+```
+
+### Splitting paths
+
+Use `fs.path.split` to break a path into components:
+
+```lua
+local parts = fs.path.split("a/b/c.txt")
+assert(parts[1] == "a")
+assert(parts[2] == "b")
+assert(parts[3] == "c.txt")
+```
+
+### Extracting filename and parent
+
+Use `fs.path.name` to get the filename:
+
+```lua
+local name = fs.path.name("/home/user/document.pdf")
+assert(name == "document.pdf")
+```
+
+Use `fs.path.parent` to get the parent directory:
+
+```lua
+local parent = fs.path.parent("/home/user/document.pdf")
+assert(parent == "/home/user")
+```
+
+### Platform constants
+
+The separator and delimiter vary by platform:
+
+```lua
+print(fs.path.separator)  -- "/" on Unix, "\" on Windows
+print(fs.path.delimiter)  -- ":" on Unix, ";" on Windows
+```
+
+## Error handling
+
+All `fs` functions throw errors on failure. Use `catch` for error handling:
+
+```lua
+local ok, err = catch fs.copy("missing.txt", "dest.txt")
+if not ok then
+    print("Copy failed:", err)
+end
+```
+
+Error messages include the path and specific reason:
+
+```lua
+catch fs.remove("nonexistent")
+-- "cannot remove 'nonexistent': path does not exist"
+
+catch fs.createdirectory("existing_dir")
+-- "cannot create directory 'existing_dir': already exists"
+
+catch fs.remove("nonempty_dir")
+-- "cannot remove directory 'nonempty_dir': not empty"
+```
+
+## Complete example
+
+A function to copy a directory recursively:
+
+```lua
+local function copydir(src, dst)
+    fs.createdirectory(dst)
+
+    for _, name in ipairs(fs.list(src)) do
+        local src_path = fs.path.join(src, name)
+        local dst_path = fs.path.join(dst, name)
+
+        local t = fs.type(src_path)
+        if t == "directory" then
+            copydir(src_path, dst_path)
+        else
+            fs.copy(src_path, dst_path)
+        end
+    end
+end
+
+copydir("project", "project_backup")
+```
+
+---
+
+## Motivation
+
+Lua's standard library provides minimal filesystem support. The `os` library only offers `os.remove` and `os.rename`, with platform-dependent behavior and inconsistent error handling.
+
+### Missing operations
+
+Lua has no built-in way to list directory contents, copy files, create directories, work with symbolic links, or manipulate paths portably. Developers must use external libraries like LuaFileSystem or shell commands, making the language less sovereign.
+
+### Path handling
+
+Building paths with string concatenation is error-prone:
+
+```lua
+-- Lua: manual path building
+local path = dir .. "/" .. file  -- wrong on Windows
+local path = dir .. "\\" .. file  -- wrong on Unix
+```
+
+The `fs.path` functions handle platform differences:
+
+```lua
+-- Lus: portable path handling
+local path = fs.path.join(dir, file)  -- correct everywhere
+```

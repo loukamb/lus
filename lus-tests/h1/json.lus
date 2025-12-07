@@ -1,4 +1,4 @@
-global setmetatable, assert, type, require, fromjson, tojson, io, tostring, table
+global setmetatable, assert, type, require, fromjson, tojson, io, tostring, table, fs, string
 
 local framework = require("lus-tests.framework")
 local tests = framework.new("json")
@@ -314,12 +314,6 @@ tests:it("roundtrip preserves array", function()
 end)
 
 -- RFC 8259 Test Suite (if h1/json folder exists)
-local function file_exists(path)
-    local f = io.open(path, "r")
-    if f then f:close() return true end
-    return false
-end
-
 local function readfile(path)
     local f = io.open(path, "rb")
     if not f then return nil end
@@ -329,24 +323,31 @@ local function readfile(path)
 end
 
 local function get_json_test_files()
-    local files = {y = {}, n = {}, i = {}}
-    local handle = io.popen("ls lus-tests/h1/json/*.json 2>/dev/null")
-    if not handle then return nil end
+    local json_dir = "lus-tests/h1/json"
     
-    for line in handle:lines() do
-        local basename = line:match("([^/]+)%.json$")
-        if basename then
-            local prefix = basename:sub(1, 1)
-            if prefix == "y" then
-                files.y[#files.y + 1] = line
-            elseif prefix == "n" then
-                files.n[#files.n + 1] = line
-            elseif prefix == "i" then
-                files.i[#files.i + 1] = line
-            end
+    -- Check if directory exists using fs.type
+    local ok = catch fs.type(json_dir)
+    if not ok then return nil end
+    
+    -- Use fs.list to get JSON files
+    local list_ok, all_files = catch fs.list(json_dir, "*.json")
+    if not list_ok then return nil end
+    
+    local files = {y = {}, n = {}, i = {}}
+    
+    for idx = 1, #all_files do
+        local basename = all_files[idx]
+        local prefix = string.sub(basename, 1, 1)
+        local path = fs.path.join(json_dir, basename)
+        
+        if prefix == "y" then
+            files.y[#files.y + 1] = {path = path, name = basename}
+        elseif prefix == "n" then
+            files.n[#files.n + 1] = {path = path, name = basename}
+        elseif prefix == "i" then
+            files.i[#files.i + 1] = {path = path, name = basename}
         end
     end
-    handle:close()
     
     if #files.y == 0 and #files.n == 0 and #files.i == 0 then
         return nil
@@ -359,22 +360,20 @@ local json_files = get_json_test_files()
 if json_files then
     -- y_* files (must parse successfully)
     for i = 1, #json_files.y do
-        local path = json_files.y[i]
-        local basename = path:match("([^/]+)$")
-        tests:it("y_: " .. basename, function()
-            local content = readfile(path)
-            assert(content, "Failed to read file: " .. path)
+        local file = json_files.y[i]
+        tests:it("RFC8259 y_: " .. file.name, function()
+            local content = readfile(file.path)
+            assert(content, "Failed to read file: " .. file.path)
             fromjson(content)
         end)
     end
     
     -- n_* files (must fail to parse)
     for i = 1, #json_files.n do
-        local path = json_files.n[i]
-        local basename = path:match("([^/]+)$")
-        tests:it("n_: " .. basename, function()
-            local content = readfile(path)
-            assert(content, "Failed to read file: " .. path)
+        local file = json_files.n[i]
+        tests:it("RFC8259 n_: " .. file.name, function()
+            local content = readfile(file.path)
+            assert(content, "Failed to read file: " .. file.path)
             local ok, err = catch fromjson(content)
             assert(not ok, "Expected parse error but got success")
         end)
@@ -382,12 +381,12 @@ if json_files then
     
     -- i_* files (implementation-defined, soft-fail)
     for i = 1, #json_files.i do
-        local path = json_files.i[i]
-        local basename = path:match("([^/]+)$")
-        tests:it("i_: " .. basename, function()
-            local content = readfile(path)
-            assert(content, "Failed to read file: " .. path)
-            local ok, result = catch fromjson(content)
+        local file = json_files.i[i]
+        tests:it("RFC8259 i_: " .. file.name, function()
+            local content = readfile(file.path)
+            assert(content, "Failed to read file: " .. file.path)
+            catch fromjson(content)
+            -- Implementation-defined: either parse or error is acceptable
         end)
     end
 end

@@ -1,4 +1,4 @@
-global print, require, assert, type, os, io, string, arg, tostring, collectgarbage, package
+global print, require, assert, type, os, fs, io, string, arg, tostring, collectgarbage, package
 
 local framework = require("lus-tests.framework")
 local tests = framework.new("cli")
@@ -37,7 +37,7 @@ tests:it("script execution", function()
     
     local out = run_lus(tmp)
     assert(string.find(out, "hello from file"))
-    os.remove(tmp)
+    fs.remove(tmp)
 end)
 
 tests:it("stdin execution (-)", function()

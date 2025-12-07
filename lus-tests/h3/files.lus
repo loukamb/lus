@@ -1,4 +1,4 @@
-global print, require, assert, type, io, os, string, tostring, collectgarbage
+global print, require, assert, type, io, os, fs, string, tostring, collectgarbage
 
 local framework = require("lus-tests.framework")
 local tests = framework.new("files")
@@ -23,7 +23,7 @@ tests:it("os.tmpname / io.open", function()
     assert(f:read("*a") == "hello")
     f:close()
     
-    os.remove(name)
+    fs.remove(name)
 end)
 
 tests:it("io.popen", function()

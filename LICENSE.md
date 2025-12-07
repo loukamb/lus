@@ -1,4 +1,5 @@
 Copyright © 1994–2025 Lua.org, PUC-Rio.
+Copyright © 2016 Nicolas Seriot.
 Copyright © 2025-2026 Louka Ménard Blondin <louka.menard.blondin@pm.me>.
 
 Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted.

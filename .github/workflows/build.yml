@@ -4,13 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'lus/**'
-      - 'lus-tests/**'
+      - "lus/**"
+      - "lus-tests/**"
   pull_request:
     branches: [main]
     paths:
-      - 'lus/**'
-      - 'lus-tests/**'
+      - "lus/**"
+      - "lus-tests/**"
   workflow_dispatch:
 
 jobs:
@@ -38,7 +38,7 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=0:print_stacktrace=1:symbolize=1
           UBSAN_OPTIONS: print_stacktrace=1:symbolize=1
-        run: meson test -C lus/build -v --print-errorlogs --suite h1 --suite h2 --suite h3 --suite h4
+        run: meson test -C lus/build -v --print-errorlogs --suite h1 --suite h2 --suite h3-ci --suite h4
 
   linux-glibc:
     name: Linux (glibc)

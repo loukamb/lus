@@ -1,0 +1,401 @@
+local framework = require("lus-tests.framework")
+local tests = framework.new("catchstat")
+
+global print, assert, error, type, tostring, setmetatable, coroutine, table, select
+
+-- ============================================================================
+-- Basic syntax and semantics
+-- ============================================================================
+
+tests:it("catch statement syntax", function()
+    local called = false
+    catch (function() called = true end)()
+    assert(called == true)
+end)
+
+tests:it("catch statement suppresses error", function()
+    catch error("suppressed error")
+    assert(true)
+end)
+
+tests:it("catch statement works with function calls", function()
+    local x = 0
+    local function f() x = 1 return 1, 2 end
+    catch f()
+    assert(x == 1)
+end)
+
+tests:it("catch statement ignores return values", function()
+    local function f() return 1, 2, 3, 4, 5 end
+    catch f()
+    -- No way to access return values - that's the point
+    assert(true)
+end)
+
+-- ============================================================================
+-- Register management (the bug we just fixed)
+-- ============================================================================
+
+tests:it("multiple catch statements don't leak registers", function()
+    local a = 1
+    catch error("1")
+    local b = 2
+    catch error("2")
+    local c = 3
+    catch error("3")
+    local d = 4
+    catch error("4")
+    local e = 5
+    -- If registers leaked, we'd eventually run out or corrupt values
+    assert(a == 1 and b == 2 and c == 3 and d == 4 and e == 5)
+end)
+
+tests:it("catch in loop doesn't accumulate registers", function()
+    local sum = 0
+    for i = 1, 100 do
+        catch error("error " .. i)
+        sum = sum + i
+    end
+    assert(sum == 5050)
+end)
+
+tests:it("variables after catch are correctly allocated", function()
+    catch error("test")
+    local x = 10
+    local y = 20
+    local z = 30
+    assert(x + y + z == 60)
+end)
+
+-- ============================================================================
+-- Different expression types
+-- ============================================================================
+
+tests:it("catch with arithmetic expression", function()
+    catch (1 + 2 + 3)
+    assert(true)
+end)
+
+tests:it("catch with string concatenation", function()
+    catch ("hello" .. " " .. "world")
+    assert(true)
+end)
+
+tests:it("catch with table constructor", function()
+    catch ({1, 2, 3, key = "value"})
+    assert(true)
+end)
+
+tests:it("catch with function definition", function()
+    catch (function() return 42 end)
+    assert(true)
+end)
+
+tests:it("catch with nil expression", function()
+    catch nil
+    assert(true)
+end)
+
+tests:it("catch with boolean expressions", function()
+    catch (true and false)
+    catch (true or false)
+    catch (not true)
+    assert(true)
+end)
+
+-- ============================================================================
+-- Error suppression
+-- ============================================================================
+
+tests:it("catch suppresses nil arithmetic", function()
+    local x = nil
+    catch (x + 1)
+    assert(true)
+end)
+
+tests:it("catch suppresses nil indexing", function()
+    local x = nil
+    catch (x.foo)
+    assert(true)
+end)
+
+tests:it("catch suppresses nil call", function()
+    local x = nil
+    catch x()
+    assert(true)
+end)
+
+tests:it("catch suppresses explicit error()", function()
+    catch error("this should be suppressed")
+    assert(true)
+end)
+
+tests:it("catch suppresses assert failure", function()
+    catch assert(false, "assertion failed")
+    assert(true)
+end)
+
+tests:it("catch suppresses division by zero (for integers)", function()
+    -- Note: Lua float division by zero returns inf, not error
+    -- But integer floor division does error
+    catch (1 // 0)
+    assert(true)
+end)
+
+-- ============================================================================
+-- Side effects
+-- ============================================================================
+
+tests:it("side effects happen before error", function()
+    local effects = {}
+    local function effect(n)
+        table.insert(effects, n)
+        return n
+    end
+    
+    local function failing()
+        effect(1)
+        effect(2)
+        error("fail")
+        effect(3)  -- This should not execute
+    end
+    
+    catch failing()
+    
+    assert(#effects == 2)
+    assert(effects[1] == 1)
+    assert(effects[2] == 2)
+end)
+
+tests:it("function call side effects execute", function()
+    local counter = 0
+    local function increment()
+        counter = counter + 1
+        return counter
+    end
+    
+    catch increment()
+    catch increment()
+    catch increment()
+    
+    assert(counter == 3)
+end)
+
+-- ============================================================================
+-- Nested and complex scenarios
+-- ============================================================================
+
+tests:it("nested catch statements", function()
+    local outer_ran = false
+    local inner_ran = false
+    
+    catch (function()
+        outer_ran = true
+        catch error("inner error")
+        inner_ran = true
+    end)()
+    
+    assert(outer_ran)
+    assert(inner_ran)
+end)
+
+tests:it("catch in if statement", function()
+    local x = true
+    if x then
+        catch error("in if")
+    end
+    assert(true)
+end)
+
+tests:it("catch in else branch", function()
+    local x = false
+    if x then
+        assert(false)
+    else
+        catch error("in else")
+    end
+    assert(true)
+end)
+
+tests:it("catch in while loop", function()
+    local count = 0
+    while count < 3 do
+        catch error("in while")
+        count = count + 1
+    end
+    assert(count == 3)
+end)
+
+tests:it("catch in repeat-until", function()
+    local count = 0
+    repeat
+        catch error("in repeat")
+        count = count + 1
+    until count >= 3
+    assert(count == 3)
+end)
+
+tests:it("catch in function body", function()
+    local function f()
+        catch error("in function")
+        return 42
+    end
+    assert(f() == 42)
+end)
+
+tests:it("catch before return", function()
+    local function f()
+        catch error("before return")
+        return "success"
+    end
+    assert(f() == "success")
+end)
+
+-- ============================================================================
+-- Method calls and metatables
+-- ============================================================================
+
+tests:it("catch with method call", function()
+    local obj = {
+        method = function(self) return self.value end,
+        value = 42
+    }
+    catch obj:method()
+    assert(true)
+end)
+
+tests:it("catch with failing method", function()
+    local obj = {
+        method = function(self) error("method error") end
+    }
+    catch obj:method()
+    assert(true)
+end)
+
+tests:it("catch with __call metamethod", function()
+    local mt = {
+        __call = function(t, ...) return "called" end
+    }
+    local obj = setmetatable({}, mt)
+    catch obj()
+    assert(true)
+end)
+
+tests:it("catch with failing __call", function()
+    local mt = {
+        __call = function(t, ...) error("__call error") end
+    }
+    local obj = setmetatable({}, mt)
+    catch obj()
+    assert(true)
+end)
+
+tests:it("catch with __index error", function()
+    local mt = {
+        __index = function(t, k) error("__index error") end
+    }
+    local obj = setmetatable({}, mt)
+    catch (obj.foo)
+    assert(true)
+end)
+
+tests:it("catch with __newindex error", function()
+    local mt = {
+        __newindex = function(t, k, v) error("__newindex error") end
+    }
+    local obj = setmetatable({}, mt)
+    catch (function() obj.foo = 1 end)()
+    assert(true)
+end)
+
+-- ============================================================================
+-- Varargs and multiple returns
+-- ============================================================================
+
+tests:it("catch with vararg function", function()
+    local function varfunc(...)
+        return select("#", ...), ...
+    end
+    catch varfunc(1, 2, 3, 4, 5)
+    assert(true)
+end)
+
+tests:it("catch with multiple return function", function()
+    local function multi()
+        return 1, 2, 3, 4, 5
+    end
+    catch multi()
+    assert(true)
+end)
+
+tests:it("catch with table.unpack", function()
+    local t = {1, 2, 3, 4, 5}
+    catch table.unpack(t)
+    assert(true)
+end)
+
+-- ============================================================================
+-- Edge cases
+-- ============================================================================
+
+tests:it("catch with empty function call", function()
+    local function empty() end
+    catch empty()
+    assert(true)
+end)
+
+tests:it("catch followed by assignment", function()
+    catch error("test")
+    local x = 10
+    assert(x == 10)
+end)
+
+tests:it("catch as only statement in block", function()
+    do
+        catch error("only statement")
+    end
+    assert(true)
+end)
+
+tests:it("multiple catches on same line (semicolon separated)", function()
+    catch error("1"); catch error("2"); catch error("3")
+    assert(true)
+end)
+
+tests:it("catch with complex expression", function()
+    local t = {a = {b = {c = function() return 42 end}}}
+    catch t.a.b.c()
+    assert(true)
+end)
+
+tests:it("catch with chained method calls", function()
+    local obj = {
+        value = 0,
+        add = function(self, n) self.value = self.value + n; return self end,
+        mul = function(self, n) self.value = self.value * n; return self end,
+    }
+    catch obj:add(5):mul(2):add(3)
+    assert(obj.value == 13)
+end)
+
+-- ============================================================================
+-- Interaction with catch expression
+-- ============================================================================
+
+tests:it("catch statement followed by catch expression", function()
+    catch error("statement")
+    local ok, err = catch error("expression")
+    assert(ok == false)
+    assert(type(err) == "string")
+end)
+
+tests:it("catch statement inside catch expression handler", function()
+    local function handler()
+        catch error("inner statement")
+        error("outer error")
+    end
+    local ok = catch handler()
+    assert(ok == false)
+end)
+
+tests:finish()

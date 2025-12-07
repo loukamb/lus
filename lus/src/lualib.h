@@ -51,6 +51,10 @@ LUAMOD_API int(luaopen_table)(lua_State *L);
 #define LUA_UTF8LIBK (LUA_TABLIBK << 1)
 LUAMOD_API int(luaopen_utf8)(lua_State *L);
 
+#define LUA_FSLIBNAME "fs"
+#define LUA_FSLIBK (LUA_UTF8LIBK << 1)
+LUAMOD_API int(luaopen_fs)(lua_State *L);
+
 /* JSON global functions (tojson, fromjson) */
 LUAMOD_API int(luaopen_json)(lua_State *L);
 

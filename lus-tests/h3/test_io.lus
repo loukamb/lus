@@ -1,4 +1,4 @@
-global print, io, assert, os
+global print, io, assert, os, fs
 
 local path = os.tmpname()
 
@@ -15,4 +15,4 @@ f:close()
 assert(content == "Hello Container")
 
 print("H3 IO Test Passed")
-os.remove(path)
+fs.remove(path)

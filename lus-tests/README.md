@@ -18,6 +18,7 @@ Each test suite can be ran on either your host operating system or within a cont
 ## Running the tests locally
 
 ### Testing on your host operating system
+
 Use the `meson test` command, which will run ALL tests on your host operating system. You _probably_ don't want to do all tests there (especially H3), so you should probably pick and choose which tests you want to run, as such:
 
 ```sh
@@ -31,20 +32,17 @@ meson test h1/optchain
 You can list all available tests with `meson test --list`.
 
 ### Testing within a container
+
 The best way to run the tests in a container is to execute the `sanitize` CI workflow locally. First, make sure to have these programs installed on your computer:
+
 - [Docker](https://www.docker.com/) (macOS, Windows) or [Podman](https://podman.io/) (Linux)
 - [`act`](https://nektosact.com/)
 
 Then, run the tests while in the root directory of the repository:
+
 ```sh
 act -j sanitize
 ```
 
->[!NOTE]
+> [!NOTE]
 > If `act` asks which kind of image you want to install, choose the medium one.
-
-## Appendix A: Obtaining the JSON tests
-
-For licensing reasons, we cannot include the full RFC 8259 compliant JSON tests. While the Lus source code includes what should be entirely sufficient in-house tests, to pit the JSON parser against a more exhaustive test suite, you can download the JSON tests from [here](https://github.com/nst/JSONTestSuite) and copy the contents of the `test_parsing` directory into `lus-tests/h1/json` (create the directory if it doesn't exist). The `json.lus` test file will automatically pick them up.
-
-As of December 6, 2025, all 369 tests pass (95 valid, 188 invalid, 86 implementation-defined).
