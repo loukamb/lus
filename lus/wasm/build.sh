@@ -45,6 +45,7 @@ SOURCES=(
   "$SRC_DIR/lvm.c"
   "$SRC_DIR/lzio.c"
   "$SCRIPT_DIR/lus_wasm.c"
+  "$SCRIPT_DIR/lev_wasm_stubs.c"
 )
 
 echo "Building Lus WASM..."
