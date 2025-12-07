@@ -1892,16 +1892,607 @@ static int str_unpack(lua_State *L) {
 /* }====================================================== */
 
 
+/*
+** {======================================================
+** STRING TRANSCODING
+** =======================================================
+*/
+
+/* Encoding type identifiers */
+typedef enum {
+  ENC_ASCII,
+  ENC_UTF8,
+  ENC_UTF8BOM,
+  ENC_UTF16LE,
+  ENC_ISO8859_1,
+  ENC_BASE64,
+  ENC_URL,
+  ENC_HEX,
+  ENC_INVALID
+} EncodingType;
+
+/* Classification macros */
+#define IS_BINARY_TO_TEXT(e) ((e) == ENC_BASE64 || (e) == ENC_URL || (e) == ENC_HEX)
+
+/* Maximum Unicode codepoint */
+#define MAXUNICODE 0x10FFFFu
+
+/* UTF-8 BOM bytes */
+#define UTF8_BOM "\xEF\xBB\xBF"
+#define UTF8_BOM_LEN 3
+
+/* Base64 alphabet */
+static const char base64_enc[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/* Base64 decoding table (-1 = invalid, -2 = padding) */
+static const signed char base64_dec[256] = {
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63,
+    52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-2,-1,-1,
+    -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,
+    15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1,
+    -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
+    41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+};
+
+/* URL-safe characters (unreserved per RFC 3986) */
+static int is_url_safe(unsigned char c) {
+  return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+         (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~';
+}
+
+/* Hex digit conversion */
+static int hex_digit(unsigned char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  return -1;
+}
+
+/* Parse encoding name to enum */
+static EncodingType parse_encoding(const char *name) {
+  if (strcmp(name, "ascii") == 0) return ENC_ASCII;
+  if (strcmp(name, "utf-8") == 0) return ENC_UTF8;
+  if (strcmp(name, "utf-8bom") == 0) return ENC_UTF8BOM;
+  if (strcmp(name, "utf-16le") == 0) return ENC_UTF16LE;
+  if (strcmp(name, "iso-8859-1") == 0 || strcmp(name, "latin-1") == 0)
+    return ENC_ISO8859_1;
+  if (strcmp(name, "base64") == 0) return ENC_BASE64;
+  if (strcmp(name, "url") == 0) return ENC_URL;
+  if (strcmp(name, "hex") == 0) return ENC_HEX;
+  return ENC_INVALID;
+}
+
+/* Read UTF-16LE code unit (explicit little-endian) */
+static l_uint32 read_utf16le(const unsigned char *p) {
+  return (l_uint32)p[0] | ((l_uint32)p[1] << 8);
+}
+
+/* Write UTF-16LE code unit (explicit little-endian) */
+static void write_utf16le(unsigned char *p, l_uint32 val) {
+  p[0] = (unsigned char)(val & 0xFF);
+  p[1] = (unsigned char)((val >> 8) & 0xFF);
+}
+
+/* Encode a single codepoint to UTF-8, return number of bytes written */
+static int encode_utf8_char(l_uint32 cp, unsigned char *buf) {
+  if (cp < 0x80) {
+    buf[0] = (unsigned char)cp;
+    return 1;
+  } else if (cp < 0x800) {
+    buf[0] = (unsigned char)(0xC0 | (cp >> 6));
+    buf[1] = (unsigned char)(0x80 | (cp & 0x3F));
+    return 2;
+  } else if (cp < 0x10000) {
+    buf[0] = (unsigned char)(0xE0 | (cp >> 12));
+    buf[1] = (unsigned char)(0x80 | ((cp >> 6) & 0x3F));
+    buf[2] = (unsigned char)(0x80 | (cp & 0x3F));
+    return 3;
+  } else {
+    buf[0] = (unsigned char)(0xF0 | (cp >> 18));
+    buf[1] = (unsigned char)(0x80 | ((cp >> 12) & 0x3F));
+    buf[2] = (unsigned char)(0x80 | ((cp >> 6) & 0x3F));
+    buf[3] = (unsigned char)(0x80 | (cp & 0x3F));
+    return 4;
+  }
+}
+
+/*
+** Decode one UTF-8 sequence. Returns pointer to next char, or NULL on error.
+*/
+static const unsigned char *decode_utf8_char(const unsigned char *s,
+                                              const unsigned char *end,
+                                              l_uint32 *cp) {
+  unsigned int c = s[0];
+  if (c < 0x80) {
+    *cp = c;
+    return s + 1;
+  } else if ((c & 0xE0) == 0xC0) {
+    if (s + 2 > end) return NULL;
+    if ((s[1] & 0xC0) != 0x80) return NULL;
+    *cp = ((c & 0x1F) << 6) | (s[1] & 0x3F);
+    if (*cp < 0x80) return NULL; /* overlong */
+    return s + 2;
+  } else if ((c & 0xF0) == 0xE0) {
+    if (s + 3 > end) return NULL;
+    if ((s[1] & 0xC0) != 0x80 || (s[2] & 0xC0) != 0x80) return NULL;
+    *cp = ((c & 0x0F) << 12) | ((s[1] & 0x3F) << 6) | (s[2] & 0x3F);
+    if (*cp < 0x800) return NULL; /* overlong */
+    if (*cp >= 0xD800 && *cp <= 0xDFFF) return NULL; /* surrogate */
+    return s + 3;
+  } else if ((c & 0xF8) == 0xF0) {
+    if (s + 4 > end) return NULL;
+    if ((s[1] & 0xC0) != 0x80 || (s[2] & 0xC0) != 0x80 ||
+        (s[3] & 0xC0) != 0x80) return NULL;
+    *cp = ((c & 0x07) << 18) | ((s[1] & 0x3F) << 12) |
+          ((s[2] & 0x3F) << 6) | (s[3] & 0x3F);
+    if (*cp < 0x10000 || *cp > MAXUNICODE) return NULL;
+    return s + 4;
+  }
+  return NULL;
+}
+
+/*
+** Decode one UTF-16LE codepoint (handling surrogate pairs).
+** Returns pointer to next position, or NULL on error.
+*/
+static const unsigned char *decode_utf16le_char(const unsigned char *s,
+                                                  const unsigned char *end,
+                                                  l_uint32 *cp) {
+  l_uint32 w1, w2;
+  if (s + 2 > end) return NULL;
+  w1 = read_utf16le(s);
+  if (w1 < 0xD800 || w1 > 0xDFFF) {
+    *cp = w1;
+    return s + 2;
+  }
+  /* Surrogate pair */
+  if (w1 > 0xDBFF) return NULL; /* low surrogate first = error */
+  if (s + 4 > end) return NULL;
+  w2 = read_utf16le(s + 2);
+  if (w2 < 0xDC00 || w2 > 0xDFFF) return NULL;
+  *cp = 0x10000 + ((w1 - 0xD800) << 10) + (w2 - 0xDC00);
+  return s + 4;
+}
+
+/*
+** Encode a codepoint to UTF-16LE. Returns number of bytes written (2 or 4).
+*/
+static int encode_utf16le_char(l_uint32 cp, unsigned char *buf) {
+  if (cp < 0x10000) {
+    write_utf16le(buf, cp);
+    return 2;
+  } else {
+    /* Surrogate pair */
+    l_uint32 adj = cp - 0x10000;
+    write_utf16le(buf, 0xD800 + (adj >> 10));
+    write_utf16le(buf + 2, 0xDC00 + (adj & 0x3FF));
+    return 4;
+  }
+}
+
+/*
+** Decode base64 string to bytes.
+** Returns decoded length, or -1 on error.
+*/
+static int decode_base64(const unsigned char *src, size_t srclen,
+                         luaL_Buffer *b) {
+  size_t i = 0;
+  unsigned char buf[3];
+  int accum = 0, bits = 0;
+
+  while (i < srclen) {
+    unsigned char c = src[i++];
+    /* Skip whitespace */
+    if (c == ' ' || c == '\t' || c == '\n' || c == '\r') continue;
+    
+    int val = base64_dec[c];
+    if (val == -2) { /* Padding */
+      break;
+    }
+    if (val == -1) return -1; /* Invalid character */
+    
+    accum = (accum << 6) | val;
+    bits += 6;
+    
+    if (bits >= 8) {
+      bits -= 8;
+      buf[0] = (unsigned char)((accum >> bits) & 0xFF);
+      luaL_addlstring(b, (char *)buf, 1);
+    }
+  }
+  return 0;
+}
+
+/*
+** Encode bytes to base64.
+*/
+static void encode_base64(const unsigned char *src, size_t srclen,
+                          luaL_Buffer *b) {
+  size_t i;
+  unsigned char out[4];
+  
+  for (i = 0; i + 2 < srclen; i += 3) {
+    out[0] = base64_enc[(src[i] >> 2) & 0x3F];
+    out[1] = base64_enc[((src[i] & 0x03) << 4) | ((src[i+1] >> 4) & 0x0F)];
+    out[2] = base64_enc[((src[i+1] & 0x0F) << 2) | ((src[i+2] >> 6) & 0x03)];
+    out[3] = base64_enc[src[i+2] & 0x3F];
+    luaL_addlstring(b, (char *)out, 4);
+  }
+  
+  /* Handle remaining bytes */
+  if (i < srclen) {
+    out[0] = base64_enc[(src[i] >> 2) & 0x3F];
+    if (i + 1 < srclen) {
+      out[1] = base64_enc[((src[i] & 0x03) << 4) | ((src[i+1] >> 4) & 0x0F)];
+      out[2] = base64_enc[(src[i+1] & 0x0F) << 2];
+      out[3] = '=';
+    } else {
+      out[1] = base64_enc[(src[i] & 0x03) << 4];
+      out[2] = '=';
+      out[3] = '=';
+    }
+    luaL_addlstring(b, (char *)out, 4);
+  }
+}
+
+/*
+** Decode URL-encoded string to bytes.
+** Returns 0 on success, -1 on error.
+*/
+static int decode_url(const unsigned char *src, size_t srclen,
+                      luaL_Buffer *b) {
+  size_t i = 0;
+  unsigned char buf[1];
+  
+  while (i < srclen) {
+    unsigned char c = src[i++];
+    if (c == '%') {
+      if (i + 2 > srclen) return -1;
+      int h1 = hex_digit(src[i]);
+      int h2 = hex_digit(src[i + 1]);
+      if (h1 < 0 || h2 < 0) return -1;
+      buf[0] = (unsigned char)((h1 << 4) | h2);
+      luaL_addlstring(b, (char *)buf, 1);
+      i += 2;
+    } else if (c == '+') {
+      /* '+' is sometimes used for space */
+      buf[0] = ' ';
+      luaL_addlstring(b, (char *)buf, 1);
+    } else {
+      buf[0] = c;
+      luaL_addlstring(b, (char *)buf, 1);
+    }
+  }
+  return 0;
+}
+
+/*
+** Encode bytes to URL-encoded string.
+*/
+static void encode_url(const unsigned char *src, size_t srclen,
+                       luaL_Buffer *b) {
+  static const char hex[] = "0123456789ABCDEF";
+  size_t i;
+  char buf[3];
+  
+  for (i = 0; i < srclen; i++) {
+    unsigned char c = src[i];
+    if (is_url_safe(c)) {
+      buf[0] = (char)c;
+      luaL_addlstring(b, buf, 1);
+    } else {
+      buf[0] = '%';
+      buf[1] = hex[(c >> 4) & 0x0F];
+      buf[2] = hex[c & 0x0F];
+      luaL_addlstring(b, buf, 3);
+    }
+  }
+}
+
+/*
+** Decode hex string to bytes.
+** Returns 0 on success, -1 on error.
+*/
+static int decode_hex(const unsigned char *src, size_t srclen,
+                      luaL_Buffer *b) {
+  size_t i;
+  unsigned char buf[1];
+  
+  if (srclen % 2 != 0) return -1; /* Must be even length */
+  
+  for (i = 0; i < srclen; i += 2) {
+    int h1 = hex_digit(src[i]);
+    int h2 = hex_digit(src[i + 1]);
+    if (h1 < 0 || h2 < 0) return -1;
+    buf[0] = (unsigned char)((h1 << 4) | h2);
+    luaL_addlstring(b, (char *)buf, 1);
+  }
+  return 0;
+}
+
+/*
+** Encode bytes to lowercase hex string.
+*/
+static void encode_hex(const unsigned char *src, size_t srclen,
+                       luaL_Buffer *b) {
+  static const char hex[] = "0123456789abcdef";
+  size_t i;
+  char buf[2];
+  
+  for (i = 0; i < srclen; i++) {
+    buf[0] = hex[(src[i] >> 4) & 0x0F];
+    buf[1] = hex[src[i] & 0x0F];
+    luaL_addlstring(b, buf, 2);
+  }
+}
+
+/*
+** Main transcode function.
+** string.transcode(data, from, to [, ignorebad])
+*/
+static int str_transcode(lua_State *L) {
+  size_t srclen;
+  const unsigned char *src = (const unsigned char *)luaL_checklstring(L, 1, &srclen);
+  const char *from_str = luaL_checkstring(L, 2);
+  const char *to_str = luaL_checkstring(L, 3);
+  int ignorebad = lua_toboolean(L, 4);
+  
+  EncodingType from = parse_encoding(from_str);
+  EncodingType to = parse_encoding(to_str);
+  
+  if (from == ENC_INVALID)
+    return luaL_error(L, "invalid source encoding '%s'", from_str);
+  if (to == ENC_INVALID)
+    return luaL_error(L, "invalid target encoding '%s'", to_str);
+  
+  luaL_Buffer b;
+  luaL_buffinit(L, &b);
+  
+  const unsigned char *p = src;
+  const unsigned char *end = src + srclen;
+  
+  /* Handle binary-to-text encodings specially */
+  if (IS_BINARY_TO_TEXT(from) && IS_BINARY_TO_TEXT(to)) {
+    /* Decode from source format to raw bytes, then encode to target */
+    luaL_Buffer temp;
+    luaL_buffinit(L, &temp);
+    
+    int err = 0;
+    if (from == ENC_BASE64) {
+      err = decode_base64(src, srclen, &temp);
+    } else if (from == ENC_URL) {
+      err = decode_url(src, srclen, &temp);
+    } else { /* ENC_HEX */
+      err = decode_hex(src, srclen, &temp);
+    }
+    
+    if (err < 0) {
+      if (!ignorebad)
+        return luaL_error(L, "invalid %s input", from_str);
+      lua_pushliteral(L, "");
+      return 1;
+    }
+    
+    luaL_pushresult(&temp);
+    size_t rawlen;
+    const unsigned char *raw = (const unsigned char *)lua_tolstring(L, -1, &rawlen);
+    
+    if (to == ENC_BASE64) {
+      encode_base64(raw, rawlen, &b);
+    } else if (to == ENC_URL) {
+      encode_url(raw, rawlen, &b);
+    } else { /* ENC_HEX */
+      encode_hex(raw, rawlen, &b);
+    }
+    
+    lua_pop(L, 1); /* pop temp string */
+    luaL_pushresult(&b);
+    return 1;
+  }
+  
+  /* Binary-to-text as source: decode to raw bytes first */
+  if (IS_BINARY_TO_TEXT(from)) {
+    luaL_Buffer temp;
+    luaL_buffinit(L, &temp);
+    
+    int err = 0;
+    if (from == ENC_BASE64) {
+      err = decode_base64(src, srclen, &temp);
+    } else if (from == ENC_URL) {
+      err = decode_url(src, srclen, &temp);
+    } else { /* ENC_HEX */
+      err = decode_hex(src, srclen, &temp);
+    }
+    
+    if (err < 0) {
+      if (!ignorebad)
+        return luaL_error(L, "invalid %s input", from_str);
+      lua_pushliteral(L, "");
+      return 1;
+    }
+    
+    luaL_pushresult(&temp);
+    size_t rawlen;
+    src = (const unsigned char *)lua_tolstring(L, -1, &rawlen);
+    srclen = rawlen;
+    p = src;
+    end = src + srclen;
+    
+    /* If target is utf-8, return raw bytes directly (no validation) */
+    if (to == ENC_UTF8) {
+      lua_pushvalue(L, -1); /* push the temp result again */
+      return 1;
+    }
+    
+    /* Now treat as UTF-8 for the "from" side */
+    from = ENC_UTF8;
+  }
+  
+  /* Binary-to-text as target: encode raw bytes directly */
+  if (IS_BINARY_TO_TEXT(to)) {
+    /* First decode source to raw bytes (treating as UTF-8 means pass-through) */
+    if (to == ENC_BASE64) {
+      encode_base64(src, srclen, &b);
+    } else if (to == ENC_URL) {
+      encode_url(src, srclen, &b);
+    } else { /* ENC_HEX */
+      encode_hex(src, srclen, &b);
+    }
+    luaL_pushresult(&b);
+    return 1;
+  }
+  
+  /* Character-based transcoding: decode codepoints, then encode */
+  
+  /* Pre-check for UTF-16LE: must have even number of bytes */
+  if (from == ENC_UTF16LE && (srclen % 2) != 0) {
+    if (!ignorebad)
+      return luaL_error(L, "invalid UTF-16LE input: odd byte count");
+    /* Truncate to even length */
+    srclen--;
+    end = src + srclen;
+  }
+  
+  /* Handle UTF-8 BOM on input */
+  if (from == ENC_UTF8BOM) {
+    if (srclen >= UTF8_BOM_LEN && memcmp(p, UTF8_BOM, UTF8_BOM_LEN) == 0) {
+      p += UTF8_BOM_LEN;
+    }
+    from = ENC_UTF8; /* Treat rest as UTF-8 */
+  }
+  
+  /* Add UTF-8 BOM on output if needed */
+  if (to == ENC_UTF8BOM) {
+    luaL_addlstring(&b, UTF8_BOM, UTF8_BOM_LEN);
+    to = ENC_UTF8; /* Treat rest as UTF-8 */
+  }
+  
+  while (p < end) {
+    l_uint32 cp;
+    const unsigned char *next = NULL;
+    unsigned char outbuf[4];
+    int outlen;
+    
+    /* Decode one codepoint from source encoding */
+    switch (from) {
+      case ENC_ASCII:
+        if (*p > 127) {
+          if (!ignorebad)
+            return luaL_error(L, "invalid ASCII byte 0x%02X at position %d",
+                              *p, (int)(p - src + 1));
+          p++;
+          continue;
+        }
+        cp = *p++;
+        break;
+        
+      case ENC_UTF8:
+        next = decode_utf8_char(p, end, &cp);
+        if (next == NULL) {
+          if (!ignorebad)
+            return luaL_error(L, "invalid UTF-8 sequence at position %d",
+                              (int)(p - src + 1));
+          p++;
+          continue;
+        }
+        p = next;
+        break;
+        
+      case ENC_UTF16LE:
+        next = decode_utf16le_char(p, end, &cp);
+        if (next == NULL) {
+          if (!ignorebad)
+            return luaL_error(L, "invalid UTF-16LE sequence at position %d",
+                              (int)(p - src + 1));
+          p += 2;
+          if (p > end) p = end;
+          continue;
+        }
+        p = next;
+        break;
+        
+      case ENC_ISO8859_1:
+        cp = *p++;
+        break;
+        
+      default:
+        return luaL_error(L, "internal error: unhandled encoding");
+    }
+    
+    /* Encode codepoint to target encoding */
+    switch (to) {
+      case ENC_ASCII:
+        if (cp > 127) {
+          if (!ignorebad)
+            return luaL_error(L, "codepoint U+%04X cannot be encoded as ASCII",
+                              (unsigned)cp);
+          continue;
+        }
+        outbuf[0] = (unsigned char)cp;
+        luaL_addlstring(&b, (char *)outbuf, 1);
+        break;
+        
+      case ENC_UTF8:
+        outlen = encode_utf8_char(cp, outbuf);
+        luaL_addlstring(&b, (char *)outbuf, (size_t)outlen);
+        break;
+        
+      case ENC_UTF16LE:
+        if (cp >= 0xD800 && cp <= 0xDFFF) {
+          if (!ignorebad)
+            return luaL_error(L, "surrogate codepoint U+%04X cannot be encoded",
+                              (unsigned)cp);
+          continue;
+        }
+        outlen = encode_utf16le_char(cp, outbuf);
+        luaL_addlstring(&b, (char *)outbuf, (size_t)outlen);
+        break;
+        
+      case ENC_ISO8859_1:
+        if (cp > 255) {
+          if (!ignorebad)
+            return luaL_error(L, "codepoint U+%04X cannot be encoded as ISO-8859-1",
+                              (unsigned)cp);
+          continue;
+        }
+        outbuf[0] = (unsigned char)cp;
+        luaL_addlstring(&b, (char *)outbuf, 1);
+        break;
+        
+      default:
+        return luaL_error(L, "internal error: unhandled encoding");
+    }
+  }
+  
+  luaL_pushresult(&b);
+  return 1;
+}
+
+/* }====================================================== */
+
+
 static const luaL_Reg strlib[] = {
-    {"byte", str_byte},     {"char", str_char},
-    {"dump", str_dump},     {"find", str_find},
-    {"format", str_format}, {"gmatch", gmatch},
-    {"gsub", str_gsub},     {"len", str_len},
-    {"lower", str_lower},   {"match", str_match},
-    {"rep", str_rep},       {"reverse", str_reverse},
-    {"sub", str_sub},       {"upper", str_upper},
-    {"pack", str_pack},     {"packsize", str_packsize},
-    {"unpack", str_unpack}, {NULL, NULL}};
+    {"byte", str_byte},         {"char", str_char},
+    {"dump", str_dump},         {"find", str_find},
+    {"format", str_format},     {"gmatch", gmatch},
+    {"gsub", str_gsub},         {"len", str_len},
+    {"lower", str_lower},       {"match", str_match},
+    {"rep", str_rep},           {"reverse", str_reverse},
+    {"sub", str_sub},           {"upper", str_upper},
+    {"pack", str_pack},         {"packsize", str_packsize},
+    {"unpack", str_unpack},     {"transcode", str_transcode},
+    {NULL, NULL}};
 
 
 static void createmetatable(lua_State *L) {

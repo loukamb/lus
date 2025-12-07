@@ -14,6 +14,7 @@ const manual = defineCollection({
     title: z.string(),
     order: z.number(),
     acquis: z.boolean().optional(),
+    draft: z.boolean().optional(),
   }),
   loader: glob({ base: "./src/manual/", pattern: "*.mdx" }),
 })

@@ -40,3 +40,5 @@
 ## Lus 1.3.0 (**WIP**)
 
 **Release date:** TBD
+
+- Added `string.transcode` for converting between encodings.

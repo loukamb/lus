@@ -1,0 +1,240 @@
+---
+order: 108
+title: Acquis 8 - Transcoding
+acquis: true
+draft: true
+---
+
+The `string.transcode` function converts strings between text encodings and binary-to-text formats. It enables interoperability with web APIs, legacy systems, and binary protocols.
+
+## Basic usage
+
+Transcode a string from one encoding to another:
+
+```lua
+local decoded = string.transcode("SGVsbG8gV29ybGQ=", "base64", "utf-8")
+assert(decoded == "Hello World")
+
+local encoded = string.transcode("Hello World", "utf-8", "base64")
+assert(encoded == "SGVsbG8gV29ybGQ=")
+```
+
+The function signature is `string.transcode(data, from, to [, ignorebad])`.
+
+## Supported encodings
+
+### Character encodings
+
+These encodings represent text as sequences of characters:
+
+```lua
+-- ASCII: 7-bit characters (0-127)
+string.transcode("Hello", "ascii", "utf-8")
+
+-- UTF-8: variable-width Unicode
+string.transcode("日本語", "utf-8", "utf-16le")
+
+-- UTF-8 with BOM: adds/strips byte order mark
+string.transcode("Hello", "utf-8", "utf-8bom")  -- prepends EF BB BF
+string.transcode("\xEF\xBB\xBFHello", "utf-8bom", "utf-8")  -- strips BOM
+
+-- UTF-16LE: little-endian UTF-16
+string.transcode("A", "utf-8", "utf-16le")  -- "A\0"
+
+-- ISO-8859-1 (Latin-1): Western European
+string.transcode("café", "utf-8", "iso-8859-1")  -- "caf\xE9"
+string.transcode("café", "utf-8", "latin-1")     -- alias
+```
+
+### Binary-to-text encodings
+
+These encodings represent arbitrary bytes as printable text:
+
+```lua
+-- Base64
+string.transcode("user:password", "utf-8", "base64")  -- "dXNlcjpwYXNzd29yZA=="
+string.transcode("dXNlcjpwYXNzd29yZA==", "base64", "utf-8")  -- "user:password"
+
+-- URL encoding
+string.transcode("hello world", "utf-8", "url")  -- "hello%20world"
+string.transcode("a%3D1%26b%3D2", "url", "utf-8")  -- "a=1&b=2"
+
+-- Hexadecimal
+string.transcode("Lus", "utf-8", "hex")  -- "4c7573"
+string.transcode("4c7573", "hex", "utf-8")  -- "Lus"
+```
+
+## Character set conversion
+
+Convert between character encodings via Unicode:
+
+```lua
+-- UTF-8 to UTF-16LE
+local utf16 = string.transcode("Hello 日本", "utf-8", "utf-16le")
+-- H\0e\0l\0l\0o\0 \0\xE5\x65\x2C\x67
+
+-- UTF-16LE back to UTF-8
+local utf8 = string.transcode(utf16, "utf-16le", "utf-8")
+assert(utf8 == "Hello 日本")
+```
+
+Supplementary plane characters (emoji, rare CJK) use surrogate pairs in UTF-16LE:
+
+```lua
+-- 𝌆 (U+1D306) encoded as surrogate pair
+local tetragram = string.transcode("𝌆", "utf-8", "utf-16le")
+assert(tetragram == "\x34\xD8\x06\xDF")  -- D834 DF06 in little-endian
+```
+
+## Binary format chaining
+
+Convert directly between binary-to-text formats:
+
+```lua
+-- Base64 to hex
+local hex = string.transcode("SGVsbG8=", "base64", "hex")
+assert(hex == "48656c6c6f")  -- "Hello" in hex
+
+-- Hex to URL encoding
+local url = string.transcode("48656c6c6f", "hex", "url")
+assert(url == "Hello")  -- printable chars unchanged
+```
+
+## Error handling
+
+Invalid input throws an error:
+
+```lua
+-- Invalid base64
+local ok, err = catch string.transcode("!!invalid!!", "base64", "utf-8")
+assert(not ok)
+assert(err:find("invalid base64"))
+
+-- Character not representable in target encoding
+local ok, err = catch string.transcode("日本語", "utf-8", "ascii")
+assert(not ok)
+assert(err:find("cannot be encoded as ASCII"))
+
+-- Malformed UTF-8
+local ok, err = catch string.transcode("\xFF\xFE", "utf-8", "hex")
+assert(not ok)
+assert(err:find("invalid UTF-8"))
+```
+
+## Graceful degradation with `ignorebad`
+
+Pass `true` as the fourth argument to skip invalid characters:
+
+```lua
+-- Skip non-ASCII characters
+local result = string.transcode("Hello 日本", "utf-8", "ascii", true)
+assert(result == "Hello ")
+
+-- Skip non-Latin1 characters
+local result = string.transcode("€100", "utf-8", "iso-8859-1", true)
+assert(result == "100")  -- € (U+20AC) not in Latin-1
+
+-- Skip malformed input
+local result = string.transcode("valid\xFF\xFEtext", "utf-8", "hex", true)
+assert(result == "76616c6964text")  -- skips bad bytes
+```
+
+## Real-world examples
+
+### HTTP Basic Authentication
+
+```lua
+local function makeBasicAuth(username, password)
+    local credentials = username .. ":" .. password
+    local encoded = string.transcode(credentials, "utf-8", "base64")
+    return "Basic " .. encoded
+end
+
+local header = makeBasicAuth("admin", "secret123")
+-- "Basic YWRtaW46c2VjcmV0MTIz"
+```
+
+### URL query string encoding
+
+```lua
+local function encodeQuery(params)
+    local parts = {}
+    for key, value in pairs(params) do
+        local k = string.transcode(key, "utf-8", "url")
+        local v = string.transcode(value, "utf-8", "url")
+        parts[#parts + 1] = k .. "=" .. v
+    end
+    return table.concat(parts, "&")
+end
+
+local query = encodeQuery({name = "José", city = "São Paulo"})
+-- "name=Jos%C3%A9&city=S%C3%A3o%20Paulo"
+```
+
+### Hex dump utility
+
+```lua
+local function hexdump(data)
+    local hex = string.transcode(data, "utf-8", "hex")
+    local lines = {}
+    for i = 1, #hex, 32 do
+        lines[#lines + 1] = string.sub(hex, i, i + 31)
+    end
+    return table.concat(lines, "\n")
+end
+
+print(hexdump("Hello, World!"))
+-- 48656c6c6f2c20576f726c6421
+```
+
+### Reading files with different encodings
+
+```lua
+local function readLatin1File(path)
+    local f = io.open(path, "rb")
+    local content = f:read("*a")
+    f:close()
+    return string.transcode(content, "iso-8859-1", "utf-8")
+end
+
+local text = readLatin1File("legacy_document.txt")
+```
+
+---
+
+## Motivation
+
+Lus strings are raw byte buffers with no inherent encoding. While flexible, this creates challenges when working with external systems that expect specific text representations.
+
+### Web API integration
+
+Base64 and URL encoding are ubiquitous:
+
+```lua
+-- Without transcode: manual encoding
+local b64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+-- ... 50+ lines of encoding logic
+
+-- With transcode: one function call
+local encoded = string.transcode(data, "utf-8", "base64")
+```
+
+### Legacy system compatibility
+
+Many legacy systems use Latin-1 or other single-byte encodings:
+
+```lua
+-- Convert modern UTF-8 to legacy encoding
+local legacy = string.transcode(modern_text, "utf-8", "iso-8859-1")
+```
+
+### Cross-platform text handling
+
+UTF-16LE is common on Windows:
+
+```lua
+-- Read Windows clipboard or registry data
+local utf8_text = string.transcode(windows_data, "utf-16le", "utf-8")
+```
+
+The unified `string.transcode` API handles all these cases without external dependencies.

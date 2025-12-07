@@ -168,6 +168,7 @@ h1_tests = [
   'h1/pm',
   'h1/sort',
   'h1/tpack',
+  'h1/transcode',
   'h1/utf8',
   'h1/vararg',
   'h1/db',

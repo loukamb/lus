@@ -62,3 +62,21 @@ li {
 blockquote {
   @apply border bg-lime-100 border-lime-300 p-4 text-lime-700;
 }
+
+html.unstable {
+  body {
+    @apply text-red-950 bg-red-50;
+  }
+
+  a {
+    @apply text-red-700;
+  }
+
+  section pre code {
+    @apply border-red-300;
+  }
+
+  blockquote {
+    @apply bg-red-100 border-red-300 text-red-700;
+  }
+}

@@ -7,14 +7,18 @@ import "@fontsource-variable/atkinson-hyperlegible-mono/wght-italic.css"
 
 import "../styles/global.css"
 import logo from "../assets/logo.svg"
+import logoUnstable from "../assets/logo-unstable.svg"
 
 interface Props {
   redirect?: string
   title?: string
+  unstable?: boolean
 }
+
+const currentLogo = Astro.props.unstable ? logoUnstable : logo
 ---
 
-<html lang="en">
+<html lang="en" class:list={[{ unstable: Astro.props.unstable }]}>
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -55,7 +59,13 @@ interface Props {
   <body>
     <header>
       <div class="header-inner">
-        <Image src={logo} alt="Lus" class="lus-logo" width={64} height={64} />
+        <Image
+          src={currentLogo}
+          alt="Lus"
+          class="lus-logo"
+          width={64}
+          height={64}
+        />
         <nav>
           <a href="/">home</a>
           ·
@@ -74,7 +84,13 @@ interface Props {
   <footer>
     <div class="footer-inner">
       <div>
-        <Image src={logo} alt="Lus" class="lus-logo" width={32} height={32} />
+        <Image
+          src={currentLogo}
+          alt="Lus"
+          class="lus-logo"
+          width={32}
+          height={32}
+        />
       </div>
       <div>
         <p>
@@ -121,6 +137,23 @@ interface Props {
       img {
         @apply min-w-8 min-h-8;
       }
+    }
+  }
+
+  :global(html.unstable) {
+    header {
+      @apply to-red-50 from-red-200;
+
+      .header-inner nav {
+        @apply text-red-700;
+        a {
+          @apply hover:bg-red-200;
+        }
+      }
+    }
+
+    footer {
+      @apply text-red-800 from-red-50 to-red-100;
     }
   }
 </style>

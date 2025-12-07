@@ -658,3 +658,122 @@ The `fs` library is implemented in C (`lfslib.c`) and exposed as a global `fs` t
 | `linit.c`     | Registered `fs` library              |
 | `lualib.h`    | Added `luaopen_fs`                   |
 | `meson.build` | Added `lfslib.c` to build sources    |
+
+## `string.transcode`
+
+Lus adds a universal encoding transcoding function to the string library, enabling conversion between various text encodings and binary-to-text formats.
+
+#### API
+
+**`string.transcode(data, from, to [, ignorebad])`**
+
+Transcodes the input string from the source encoding to the destination encoding.
+
+**Parameters:**
+
+- `data`: The input string (raw byte buffer)
+- `from`: Source encoding name (string)
+- `to`: Target encoding name (string)
+- `ignorebad`: Optional boolean. If true, silently skips invalid/untranscodable characters instead of raising an error
+
+**Returns:** The transcoded string
+
+**Throws:** Error if encoding is invalid or data cannot be transcoded (unless `ignorebad` is true)
+
+#### Supported Encodings
+
+| Encoding     | Description                                                           |
+| ------------ | --------------------------------------------------------------------- |
+| `ascii`      | 7-bit ASCII (bytes 0-127)                                             |
+| `utf-8`      | Standard UTF-8                                                        |
+| `utf-8bom`   | UTF-8 with Byte Order Mark (strips BOM on decode, adds BOM on encode) |
+| `utf-16le`   | Little-endian UTF-16 (with surrogate pair support)                    |
+| `iso-8859-1` | Latin-1 single-byte encoding (alias: `latin-1`)                       |
+| `base64`     | Base64 binary-to-text encoding                                        |
+| `url`        | URL encoding                                                          |
+| `hex`        | Hexadecimal representation                                            |
+
+#### Encoding Categories
+
+**Character-based encodings** (`ascii`, `utf-8`, `utf-8bom`, `utf-16le`, `iso-8859-1`):
+
+- Transcode via Unicode codepoints
+- Characters that cannot be represented in the target encoding trigger an error (or are skipped with `ignorebad`)
+
+**Binary-to-text encodings** (`base64`, `url`, `hex`):
+
+- When used as `from`: Decode the formatted string to raw bytes
+- When used as `to`: Encode raw bytes to the formatted string
+- Can be chained (e.g., `base64` → `hex` decodes base64 to bytes, then encodes as hex)
+
+#### Implementation Details
+
+**UTF-16LE Endianness:**
+
+The implementation explicitly handles byte order rather than relying on host architecture:
+
+```c
+/* Reading UTF-16LE (always little-endian) */
+static l_uint32 read_utf16le(const unsigned char *p) {
+  return (l_uint32)p[0] | ((l_uint32)p[1] << 8);
+}
+
+/* Writing UTF-16LE (always little-endian) */
+static void write_utf16le(unsigned char *p, l_uint32 val) {
+  p[0] = (unsigned char)(val & 0xFF);
+  p[1] = (unsigned char)((val >> 8) & 0xFF);
+}
+```
+
+**Surrogate Pair Handling:**
+
+UTF-16LE correctly handles supplementary plane characters (U+10000 to U+10FFFF) via surrogate pairs:
+
+- Encoding: Codepoints > U+FFFF are split into high (0xD800-0xDBFF) and low (0xDC00-0xDFFF) surrogates
+- Decoding: Surrogate pairs are combined back into the original codepoint
+- Lone surrogates trigger an error
+
+**UTF-8 BOM:**
+
+- Decoding `utf-8bom`: Strips the 3-byte BOM (EF BB BF) if present at the start
+- Encoding to `utf-8bom`: Prepends the BOM to the output
+
+**URL Encoding:**
+
+- Encodes all bytes except unreserved characters (A-Z, a-z, 0-9, `-`, `_`, `.`, `~`)
+- Decodes `%XX` hex sequences and `+` (as space)
+
+**Base64:**
+
+- RFC 4648 standard alphabet (`A-Za-z0-9+/` with `=` padding)
+- Ignores whitespace during decoding
+
+#### Example Usage
+
+```lua
+-- Base64 decoding
+local raw = string.transcode("dXNlcjpwYXNzd29yZA==", "base64", "utf-8")
+print(raw) -- "user:password"
+
+-- URL encoding
+local safe = string.transcode("hello world & others", "utf-8", "url")
+print(safe) -- "hello%20world%20%26%20others"
+
+-- Hex dump
+local hex = string.transcode("Lus", "utf-8", "hex")
+print(hex) -- "4c7573"
+
+-- UTF-8 to UTF-16LE
+local utf16 = string.transcode("Hello", "utf-8", "utf-16le")
+-- utf16 == "H\0e\0l\0l\0o\0"
+
+-- Character set conversion with fallback
+local latin = string.transcode("日本語", "utf-8", "iso-8859-1", true)
+print(latin) -- "" (characters skipped, cannot be represented)
+```
+
+#### Files Modified
+
+| File        | Changes                                             |
+| ----------- | --------------------------------------------------- |
+| `lstrlib.c` | Added `str_transcode` and encoding helper functions |

@@ -1,0 +1,364 @@
+global print, require, string, assert, table, type, error, tostring
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("string.transcode")
+
+local function checkerror(msg, f, ...)
+  local args = {...}
+  local status, err = catch (function() return f(table.unpack(args)) end)()
+  -- Use plain search (4th arg = true) to avoid pattern interpretation
+  assert(not status and string.find(err, msg, 1, true), "expected error containing: " .. msg)
+end
+
+-- ============================================
+-- Identity / roundtrip tests
+-- ============================================
+
+tests:describe("identity transformations")
+
+tests:it("utf-8 to utf-8 roundtrip", function()
+  assert(string.transcode("hello", "utf-8", "utf-8") == "hello")
+  assert(string.transcode("", "utf-8", "utf-8") == "")
+  assert(string.transcode("日本語", "utf-8", "utf-8") == "日本語")
+end)
+
+tests:it("ascii to ascii roundtrip", function()
+  assert(string.transcode("hello", "ascii", "ascii") == "hello")
+  assert(string.transcode("ABC123", "ascii", "ascii") == "ABC123")
+end)
+
+tests:it("iso-8859-1 to iso-8859-1 roundtrip", function()
+  assert(string.transcode("\xE9\xE8\xE0", "iso-8859-1", "iso-8859-1") == "\xE9\xE8\xE0")
+end)
+
+-- ============================================
+-- Base64 tests
+-- ============================================
+
+tests:describe("base64 encoding/decoding")
+
+tests:it("encodes utf-8 to base64", function()
+  assert(string.transcode("user:password", "utf-8", "base64") == "dXNlcjpwYXNzd29yZA==")
+  assert(string.transcode("Lus", "utf-8", "base64") == "THVz")
+  assert(string.transcode("Lu", "utf-8", "base64") == "THU=")
+  assert(string.transcode("L", "utf-8", "base64") == "TA==")
+  assert(string.transcode("", "utf-8", "base64") == "")
+end)
+
+tests:it("decodes base64 to utf-8", function()
+  assert(string.transcode("dXNlcjpwYXNzd29yZA==", "base64", "utf-8") == "user:password")
+  assert(string.transcode("THVz", "base64", "utf-8") == "Lus")
+  assert(string.transcode("THU=", "base64", "utf-8") == "Lu")
+  assert(string.transcode("TA==", "base64", "utf-8") == "L")
+  assert(string.transcode("", "base64", "utf-8") == "")
+end)
+
+tests:it("handles base64 with whitespace", function()
+  assert(string.transcode("dXNl\ncjpw\nYXNz\nd29y\nZA==", "base64", "utf-8") == "user:password")
+  assert(string.transcode("THVz  ", "base64", "utf-8") == "Lus")
+end)
+
+tests:it("errors on invalid base64", function()
+  checkerror("invalid base64", string.transcode, "!!!!", "base64", "utf-8")
+  checkerror("invalid base64", string.transcode, "abc$", "base64", "utf-8")
+end)
+
+tests:it("ignorebad skips invalid base64", function()
+  local result = string.transcode("!!!!", "base64", "utf-8", true)
+  assert(result == "")
+end)
+
+-- ============================================
+-- URL encoding tests
+-- ============================================
+
+tests:describe("url encoding/decoding")
+
+tests:it("encodes utf-8 to url", function()
+  assert(string.transcode("hello world", "utf-8", "url") == "hello%20world")
+  assert(string.transcode("a=1&b=2", "utf-8", "url") == "a%3D1%26b%3D2")
+  assert(string.transcode("hello", "utf-8", "url") == "hello")
+  assert(string.transcode("test_value-123.txt", "utf-8", "url") == "test_value-123.txt")
+end)
+
+tests:it("decodes url to utf-8", function()
+  assert(string.transcode("hello%20world", "url", "utf-8") == "hello world")
+  assert(string.transcode("a%3D1%26b%3D2", "url", "utf-8") == "a=1&b=2")
+  assert(string.transcode("hello%2Bworld", "url", "utf-8") == "hello+world")
+end)
+
+tests:it("decodes + as space in url", function()
+  assert(string.transcode("hello+world", "url", "utf-8") == "hello world")
+end)
+
+tests:it("handles case insensitive hex in url", function()
+  assert(string.transcode("hello%2fworld", "url", "utf-8") == "hello/world")
+  assert(string.transcode("hello%2Fworld", "url", "utf-8") == "hello/world")
+end)
+
+tests:it("errors on invalid url encoding", function()
+  checkerror("invalid url", string.transcode, "hello%2", "url", "utf-8")
+  checkerror("invalid url", string.transcode, "hello%GG", "url", "utf-8")
+end)
+
+-- ============================================
+-- Hex encoding tests
+-- ============================================
+
+tests:describe("hex encoding/decoding")
+
+tests:it("encodes utf-8 to hex", function()
+  assert(string.transcode("Lus", "utf-8", "hex") == "4c7573")
+  assert(string.transcode("ABC", "utf-8", "hex") == "414243")
+  assert(string.transcode("\x00\xFF", "utf-8", "hex") == "00ff")
+  assert(string.transcode("", "utf-8", "hex") == "")
+end)
+
+tests:it("decodes hex to utf-8", function()
+  assert(string.transcode("4c7573", "hex", "utf-8") == "Lus")
+  assert(string.transcode("414243", "hex", "utf-8") == "ABC")
+  -- hex -> utf-8 returns raw bytes (no UTF-8 validation)
+  assert(string.transcode("00ff", "hex", "utf-8") == "\x00\xFF")
+  assert(string.transcode("", "hex", "utf-8") == "")
+end)
+
+tests:it("handles case insensitive hex", function()
+  assert(string.transcode("4C7573", "hex", "utf-8") == "Lus")
+  assert(string.transcode("4c7573", "hex", "utf-8") == "Lus")
+  assert(string.transcode("4C7573", "hex", "utf-8") == string.transcode("4c7573", "hex", "utf-8"))
+end)
+
+tests:it("errors on invalid hex", function()
+  checkerror("invalid hex", string.transcode, "4c757", "hex", "utf-8") -- odd length
+  checkerror("invalid hex", string.transcode, "GGGG", "hex", "utf-8") -- invalid chars
+end)
+
+-- ============================================
+-- UTF-8 BOM tests
+-- ============================================
+
+tests:describe("utf-8bom encoding")
+
+tests:it("strips BOM when decoding utf-8bom", function()
+  local bom = "\xEF\xBB\xBF"
+  assert(string.transcode(bom .. "hello", "utf-8bom", "utf-8") == "hello")
+  assert(string.transcode("hello", "utf-8bom", "utf-8") == "hello") -- no BOM is fine
+end)
+
+tests:it("adds BOM when encoding to utf-8bom", function()
+  local result = string.transcode("hello", "utf-8", "utf-8bom")
+  assert(string.sub(result, 1, 3) == "\xEF\xBB\xBF")
+  assert(string.sub(result, 4) == "hello")
+end)
+
+tests:it("roundtrips utf-8bom", function()
+  local bom = "\xEF\xBB\xBF"
+  local result = string.transcode("test", "utf-8", "utf-8bom")
+  local decoded = string.transcode(result, "utf-8bom", "utf-8")
+  assert(decoded == "test")
+end)
+
+-- ============================================
+-- UTF-16LE tests
+-- ============================================
+
+tests:describe("utf-16le encoding")
+
+tests:it("encodes ASCII to utf-16le", function()
+  local result = string.transcode("ABC", "utf-8", "utf-16le")
+  assert(result == "A\x00B\x00C\x00")
+end)
+
+tests:it("decodes utf-16le to utf-8", function()
+  local result = string.transcode("A\x00B\x00C\x00", "utf-16le", "utf-8")
+  assert(result == "ABC")
+end)
+
+tests:it("handles BMP characters in utf-16le", function()
+  -- 日 = U+65E5, in UTF-16LE: E5 65
+  -- 本 = U+672C, in UTF-16LE: 2C 67
+  local utf16 = "\xE5\x65\x2C\x67"
+  local result = string.transcode(utf16, "utf-16le", "utf-8")
+  assert(result == "日本")
+  
+  -- And back
+  local encoded = string.transcode("日本", "utf-8", "utf-16le")
+  assert(encoded == utf16)
+end)
+
+tests:it("handles surrogate pairs (supplementary plane)", function()
+  -- 𝌆 = U+1D306 (TETRAGRAM FOR CENTER)
+  -- In UTF-16LE: D834 DF06 -> 34 D8 06 DF
+  local utf16 = "\x34\xD8\x06\xDF"
+  local result = string.transcode(utf16, "utf-16le", "utf-8")
+  assert(result == "𝌆")
+  
+  -- And back
+  local encoded = string.transcode("𝌆", "utf-8", "utf-16le")
+  assert(encoded == utf16)
+end)
+
+tests:it("errors on lone surrogate in utf-16le", function()
+  -- Lone high surrogate (followed by non-surrogate to avoid odd-byte error)
+  checkerror("invalid UTF-16LE", string.transcode, "\x34\xD8\x00\x00", "utf-16le", "utf-8")
+  -- Lone low surrogate at start
+  checkerror("invalid UTF-16LE", string.transcode, "\x06\xDF\x00\x00", "utf-16le", "utf-8")
+end)
+
+tests:it("errors on odd byte count in utf-16le", function()
+  checkerror("odd byte count", string.transcode, "A\x00B", "utf-16le", "utf-8")
+end)
+
+-- ============================================
+-- ISO-8859-1 / Latin-1 tests
+-- ============================================
+
+tests:describe("iso-8859-1 (latin-1) encoding")
+
+tests:it("encodes utf-8 to iso-8859-1", function()
+  -- é = U+00E9 = \xE9 in ISO-8859-1
+  local result = string.transcode("café", "utf-8", "iso-8859-1")
+  assert(result == "caf\xE9")
+end)
+
+tests:it("decodes iso-8859-1 to utf-8", function()
+  local result = string.transcode("caf\xE9", "iso-8859-1", "utf-8")
+  assert(result == "café")
+end)
+
+tests:it("accepts latin-1 as alias", function()
+  assert(string.transcode("caf\xE9", "latin-1", "utf-8") == "café")
+  assert(string.transcode("café", "utf-8", "latin-1") == "caf\xE9")
+end)
+
+tests:it("errors on codepoints > 255 when encoding to iso-8859-1", function()
+  checkerror("cannot be encoded as ISO-8859-1", string.transcode, "日本", "utf-8", "iso-8859-1")
+  checkerror("cannot be encoded as ISO-8859-1", string.transcode, "€", "utf-8", "iso-8859-1") -- U+20AC
+end)
+
+tests:it("ignorebad skips non-latin1 characters", function()
+  local result = string.transcode("hello日world", "utf-8", "iso-8859-1", true)
+  assert(result == "helloworld")
+end)
+
+-- ============================================
+-- ASCII tests
+-- ============================================
+
+tests:describe("ascii encoding")
+
+tests:it("encodes/decodes valid ASCII", function()
+  assert(string.transcode("Hello, World!", "ascii", "utf-8") == "Hello, World!")
+  assert(string.transcode("Hello, World!", "utf-8", "ascii") == "Hello, World!")
+end)
+
+tests:it("errors on bytes > 127 when decoding ASCII", function()
+  checkerror("invalid ASCII byte", string.transcode, "\x80", "ascii", "utf-8")
+  checkerror("invalid ASCII byte", string.transcode, "café", "ascii", "utf-8")
+end)
+
+tests:it("errors on codepoints > 127 when encoding to ASCII", function()
+  checkerror("cannot be encoded as ASCII", string.transcode, "café", "utf-8", "ascii")
+  checkerror("cannot be encoded as ASCII", string.transcode, "日本", "utf-8", "ascii")
+end)
+
+tests:it("ignorebad skips non-ASCII characters", function()
+  local result = string.transcode("hello日world", "utf-8", "ascii", true)
+  assert(result == "helloworld")
+  
+  local result2 = string.transcode("hello\x80world", "ascii", "utf-8", true)
+  assert(result2 == "helloworld")
+end)
+
+-- ============================================
+-- Binary-to-text chaining
+-- ============================================
+
+tests:describe("binary-to-text chaining")
+
+tests:it("base64 to hex", function()
+  -- "Lus" in base64 = "THVz"
+  -- "Lus" in hex = "4c7573"
+  local result = string.transcode("THVz", "base64", "hex")
+  assert(result == "4c7573")
+end)
+
+tests:it("hex to base64", function()
+  local result = string.transcode("4c7573", "hex", "base64")
+  assert(result == "THVz")
+end)
+
+tests:it("url to base64", function()
+  -- "a b" url-encoded = "a%20b"
+  local result = string.transcode("a%20b", "url", "base64")
+  -- "a b" in base64 = "YSBi"
+  assert(result == "YSBi")
+end)
+
+-- ============================================
+-- Error handling
+-- ============================================
+
+tests:describe("error handling")
+
+tests:it("errors on invalid encoding names", function()
+  checkerror("invalid source encoding", string.transcode, "test", "invalid", "utf-8")
+  checkerror("invalid target encoding", string.transcode, "test", "utf-8", "invalid")
+end)
+
+tests:it("errors on malformed UTF-8", function()
+  checkerror("invalid UTF-8", string.transcode, "\xFF\xFE", "utf-8", "iso-8859-1")
+  checkerror("invalid UTF-8", string.transcode, "\xC0\x80", "utf-8", "ascii") -- overlong NUL
+end)
+
+tests:it("ignorebad skips malformed UTF-8", function()
+  local result = string.transcode("hello\xFF\xFEworld", "utf-8", "ascii", true)
+  assert(result == "helloworld")
+end)
+
+-- ============================================
+-- Edge cases
+-- ============================================
+
+tests:describe("edge cases")
+
+tests:it("handles empty strings", function()
+  assert(string.transcode("", "utf-8", "base64") == "")
+  assert(string.transcode("", "base64", "utf-8") == "")
+  assert(string.transcode("", "utf-8", "utf-16le") == "")
+  assert(string.transcode("", "hex", "url") == "")
+end)
+
+tests:it("handles strings with null bytes", function()
+  local s = "a\x00b\x00c"
+  local hex = string.transcode(s, "utf-8", "hex")
+  assert(hex == "6100620063")
+  
+  local back = string.transcode(hex, "hex", "utf-8")
+  assert(back == s)
+end)
+
+tests:it("handles all ASCII printable characters", function()
+  local s = ""
+  for i = 32, 126 do
+    s = s .. string.char(i)
+  end
+  -- Roundtrip through base64
+  local encoded = string.transcode(s, "utf-8", "base64")
+  local decoded = string.transcode(encoded, "base64", "utf-8")
+  assert(decoded == s)
+end)
+
+tests:it("handles high ISO-8859-1 characters", function()
+  -- All bytes 128-255 are valid ISO-8859-1
+  local s = ""
+  for i = 128, 255 do
+    s = s .. string.char(i)
+  end
+  -- Convert to UTF-8 and back
+  local utf8 = string.transcode(s, "iso-8859-1", "utf-8")
+  local back = string.transcode(utf8, "utf-8", "iso-8859-1")
+  assert(back == s)
+end)
+
+tests:finish()
