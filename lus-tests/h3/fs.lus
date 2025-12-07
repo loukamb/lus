@@ -871,14 +871,15 @@ tests:it("resolves symbolic link", function()
     
     write_file(target, "content")
     
-    local ok = catch fs.createlink(link, target)
+    -- Use simple filename for symlink target (relative to symlink's directory)
+    local ok = catch fs.createlink(link, "follow_target.txt")
     if ok == false then
         print("        (skipped: symlink creation requires privileges)")
     else
         local resolved = fs.follow(link)
         assert(type(resolved) == "string")
         -- The resolved path should contain the target name
-        assert(resolved:find("follow_target") or resolved:find(target), 
+        assert(resolved:find("follow_target"), 
                "Resolved path should reference target")
     end
     cleanup_sandbox()
@@ -889,10 +890,10 @@ tests:it("errors on non-symlink", function()
     local file = sandbox_path("not_a_link.txt")
     write_file(file, "regular file")
     
-    local ok, err = catch fs.follow(file)
+    local ok, result = catch fs.follow(file)
     -- On POSIX, readlink on non-symlink should error
-    -- On Windows, behavior may differ
-    assert(ok == false or type(ok) == "string", "Should error or return path")
+    -- On Windows, GetFinalPathNameByHandle works on any file, returning canonical path
+    assert(ok == false or type(result) == "string", "Should error or return path")
     cleanup_sandbox()
 end)
 
