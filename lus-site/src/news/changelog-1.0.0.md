@@ -3,7 +3,7 @@ title: Lus 1.0.0
 date: 12-05-2025
 ---
 
-# Lus 1.0.0
+# 1.0.0
 
 Lus 1.0.0 is the **first major release** of the language.
 

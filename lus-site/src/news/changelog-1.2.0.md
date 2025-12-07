@@ -3,7 +3,7 @@ title: Lus 1.2.0
 date: 12-06-2025
 ---
 
-# Lus 1.2.0
+# 1.2.0
 
 - Added `fs` library for operating around the file system.
 - Removed `os.rename` in favor of `fs.move`.
