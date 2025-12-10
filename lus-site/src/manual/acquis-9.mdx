@@ -1,0 +1,156 @@
+---
+order: 109
+title: Acquis 9 - Network
+acquis: true
+draft: true
+---
+
+The `network` library provides TCP, UDP, and HTTP/HTTPS networking with native SSL support.
+
+## HTTP requests
+
+Use `network.fetch` for HTTP and HTTPS requests:
+
+```lua
+local status, body, headers = network.fetch("https://httpbin.org/get")
+print(status)  -- 200
+print(#body)   -- response size
+print(headers["content-type"])  -- "application/json"
+```
+
+### POST requests
+
+Pass method, headers, and body as additional arguments:
+
+```lua
+local status, body = network.fetch(
+  "https://httpbin.org/post",
+  "POST",
+  {["Content-Type"] = "application/json"},
+  '{"name": "Lus"}'
+)
+```
+
+### Error handling
+
+Network errors raise Lua errors:
+
+```lua
+local ok, err = catch network.fetch("https://invalid.host.example")
+if not ok then
+  print("Request failed:", err)
+end
+```
+
+## TCP connections
+
+### Client connections
+
+Connect to a TCP server and exchange data:
+
+```lua
+local sock = network.tcp.connect("example.com", 80)
+sock:settimeout(5)  -- 5 second timeout
+
+sock:send("GET / HTTP/1.0\r\nHost: example.com\r\n\r\n")
+local response = sock:receive("*a")  -- receive until EOF
+sock:close()
+```
+
+### Receive patterns
+
+The `receive` method supports several patterns:
+
+```lua
+-- Receive exactly N bytes
+local data = sock:receive(1024)
+
+-- Receive a line (strips trailing newline)
+local line = sock:receive("*l")
+
+-- Receive all data until EOF
+local all = sock:receive("*a")
+```
+
+### TCP servers
+
+Create a listening server:
+
+```lua
+local server = network.tcp.bind("127.0.0.1", 8080)
+server:settimeout(10)
+
+local client = server:accept()
+client:settimeout(5)
+
+local request = client:receive("*l")
+client:send("HTTP/1.0 200 OK\r\n\r\nHello!\n")
+client:close()
+
+server:close()
+```
+
+## UDP sockets
+
+Create, send, and receive datagrams:
+
+```lua
+-- Sender
+local sender = network.udp.open()
+sender:sendto("Hello UDP", "127.0.0.1", 9000)
+sender:close()
+
+-- Receiver (bound to port)
+local receiver = network.udp.open(9000, "127.0.0.1")
+local data, addr, port = receiver:receive()
+print(data, addr, port)  -- "Hello UDP", "127.0.0.1", sender_port
+receiver:close()
+```
+
+## Socket methods
+
+### TCP client socket
+
+| Method | Description |
+|--------|-------------|
+| `send(data)` | Send data, returns bytes sent |
+| `receive([pattern])` | Receive data (default: `"*l"`) |
+| `settimeout(seconds)` | Set operation timeout |
+| `close()` | Close the connection |
+
+### TCP server
+
+| Method | Description |
+|--------|-------------|
+| `accept()` | Accept a client connection |
+| `settimeout(seconds)` | Set accept timeout |
+| `close()` | Stop listening |
+
+### UDP socket
+
+| Method | Description |
+|--------|-------------|
+| `sendto(data, addr, port)` | Send datagram |
+| `receive([size])` | Receive datagram (default: 8192) |
+| `setsockname(addr, port)` | Bind to address and port |
+| `close()` | Close the socket |
+
+---
+
+## Motivation
+
+Lus provides native networking without external dependencies. The library handles platform differences transparently.
+
+### Single-call HTTP
+
+Compare to using raw sockets:
+
+```lua
+-- Without network.fetch: 20+ lines of socket, TLS, HTTP parsing
+-- With network.fetch:
+local status, body = network.fetch("https://api.example.com/data")
+```
+
+### Cross-platform consistency
+
+The library handles platform-specific socket APIs (Winsock vs POSIX) and TLS configuration transparently.
