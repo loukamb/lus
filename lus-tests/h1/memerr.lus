@@ -1,4 +1,6 @@
-global print, require, assert, collectgarbage, string, table, coroutine, setmetatable, load, io, os, type
+global print, require, assert, collectgarbage, string, table, coroutine, setmetatable, load, io, os, type, pledge
+
+pledge("load", "fs:read=./lus-tests/*", "seal")
 
 local framework = require("lus-tests.framework")
 local tests = framework.new("memerr")

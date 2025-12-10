@@ -7,7 +7,9 @@
     - a, b, c from t         -- equivalent to: a, b, c = t.a, t.b, t.c
 ]]
 
-global print, setmetatable, assert, type, require, os
+global print, setmetatable, assert, type, require, os, pledge
+
+pledge("load", "fs:read=./lus-tests/*", "seal")
 
 local framework = require("lus-tests.framework")
 local tests = framework.new("from")

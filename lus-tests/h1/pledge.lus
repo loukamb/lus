@@ -5,9 +5,7 @@
 
 global print, tostring, type, string, table, io, os, fs, network, pledge, dofile, error, assert
 
--- Grant fs and load permissions first (needed for dofile/loadfile/require in tests)
-pledge("fs")
-pledge("load")
+pledge("load", "fs:read=./lus-tests/*", "seal")
 
 -- Load test framework
 local framework = dofile("../framework.lus")

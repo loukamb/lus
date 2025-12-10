@@ -1,7 +1,9 @@
+global print, assert, error, type, tostring, setmetatable, coroutine, table, select, pledge
+
+pledge("load", "fs:read=./lus-tests/*", "seal")
+
 local framework = require("lus-tests.framework")
 local tests = framework.new("catchstat")
-
-global print, assert, error, type, tostring, setmetatable, coroutine, table, select
 
 -- ============================================================================
 -- Basic syntax and semantics

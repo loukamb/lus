@@ -1,4 +1,6 @@
-global print, require, assert, type, table, select, next, _G, load, string, pairs, tonumber, error
+global print, require, assert, type, table, select, next, _G, load, string, pairs, tonumber, error, pledge
+
+pledge("load", "fs:read=./lus-tests/*", "seal")
 
 local framework = require("lus-tests.framework")
 local tests = framework.new("vararg")

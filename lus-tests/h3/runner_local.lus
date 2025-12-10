@@ -67,7 +67,7 @@ run_test_in_container("lus-tests/h3/test_io.lus")
 run_test_in_container("lus-tests/h3/files.lus")
 run_test_in_container("lus-tests/h3/cli.lus")
 run_test_in_container("lus-tests/h3/fs.lus")
-
+run_test_in_container("lus-tests/h3/asyncio.lus")
 
 print("\27[32mH3: All system tests passed (Containerized).\27[0m")
 os.exit(0)

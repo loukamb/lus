@@ -1,4 +1,6 @@
-global print, require, string, assert, table, type, error, tostring
+global print, require, string, assert, table, type, error, tostring, pledge
+
+pledge("load", "fs:read=./lus-tests/*", "seal")
 
 local framework = require("lus-tests.framework")
 local tests = framework.new("string.transcode")

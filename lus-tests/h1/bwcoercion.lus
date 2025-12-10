@@ -1,4 +1,6 @@
-global print, tonumber, type, getmetatable, rawget, error, string, math, require
+global print, tonumber, type, getmetatable, rawget, error, string, math, require, pledge
+
+pledge("load", "fs:read=./lus-tests/*", "seal")
 
 local tonumber = tonumber
 local tointeger = math.tointeger

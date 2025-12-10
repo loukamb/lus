@@ -10,7 +10,9 @@
     - Ordering comparison by index: e.name1 < e.name2
 ]]
 
-global assert, type, tonumber, os, require
+global assert, type, tonumber, os, require, pledge
+
+pledge("load", "fs:read=./lus-tests/*", "seal")
 
 local framework = require("lus-tests.framework")
 local tests = framework.new("enum")

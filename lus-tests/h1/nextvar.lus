@@ -1,4 +1,6 @@
-global print, require, assert, type, pairs, ipairs, next, table, math, load, string, _G, error, tostring, collectgarbage, rawget, rawset, rawequal, rawlen, setmetatable
+global print, require, assert, type, pairs, ipairs, next, table, math, load, string, _G, error, tostring, collectgarbage, rawget, rawset, rawequal, rawlen, setmetatable, pledge
+
+pledge("load", "fs:read=./lus-tests/*", "seal")
 
 local framework = require("lus-tests.framework")
 local tests = framework.new("nextvar")

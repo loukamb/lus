@@ -1,4 +1,6 @@
-global print, require, string, math, assert, package, pairs, ipairs, type, error, _G, table, load, tostring, tonumber, select, rawset
+global print, require, string, math, assert, package, pairs, ipairs, type, error, _G, table, load, tostring, tonumber, select, rawset, pledge
+
+pledge("load", "fs:read=./lus-tests/*", "seal")
 
 local framework = require("lus-tests.framework")
 local tests = framework.new("math")

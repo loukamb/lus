@@ -9,7 +9,9 @@
   If any assigned value is nil/false, the condition is false.
 ]]
 
-global print, setmetatable, assert, _G, require, os
+global print, setmetatable, assert, _G, require, os, pledge
+
+pledge("load", "fs:read=./lus-tests/*", "seal")
 
 local framework = require("lus-tests.framework")
 local tests = framework.new("ifassign")

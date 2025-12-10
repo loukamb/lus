@@ -1,4 +1,6 @@
-global print, require, assert, type, table, string, math, pairs, setmetatable, getmetatable, collectgarbage, _G, load, coroutine, debug, X, error, xpcall
+global print, require, assert, type, table, string, math, pairs, setmetatable, getmetatable, collectgarbage, _G, load, coroutine, debug, X, error, xpcall, pledge
+
+pledge("load", "fs:read=./lus-tests/*", "seal") 
 
 local framework = require("lus-tests.framework")
 local debug = require"debug"
