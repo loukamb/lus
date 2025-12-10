@@ -137,15 +137,93 @@ pledge("fs:write")      -- denied, not in CLI grant
 
 ## Coroutine inheritance
 
-Permissions are inherited by coroutines:
+When a coroutine is created, it receives a copy of its parent's permissions. This copy is independent; changes in the coroutine don't affect the parent, and vice versa.
 
 ```lua
 pledge("fs")
+pledge("network")
 
 local co = coroutine.create(function()
   fs.list("/tmp")  -- inherits fs permission
+  
+  -- Restrict our copy further
+  pledge("~network")  -- reject network in this coroutine
+  pledge("seal")      -- seal this coroutine's permissions
+  
+  -- network is now denied in this coroutine
+  local ok = pledge("network")
+  assert(not ok)
 end)
+
+coroutine.resume(co)
+
+-- Parent still has network access
+pledge("network:http")  -- works fine
 ```
+
+### Sandboxing with coroutines
+
+This copy-on-create behavior enables sandboxing patterns where untrusted code runs with restricted permissions:
+
+```lua
+-- Parent has broad permissions
+pledge("fs")
+pledge("network")
+pledge("exec")
+
+local function run_sandboxed(fn, allowed_perms)
+  local co = coroutine.create(function()
+    -- Reject everything first
+    pledge("~fs")
+    pledge("~network")
+    pledge("~exec")
+    
+    -- Then grant only what's allowed
+    for _, perm in ipairs(allowed_perms) do
+      pledge(perm)
+    end
+    pledge("seal")  -- lock it down
+    
+    fn()  -- run the untrusted code
+  end)
+  return coroutine.resume(co)
+end
+
+-- Run untrusted code with only fs:read access
+run_sandboxed(function()
+  local files = fs.list("/tmp")           -- allowed
+  local ok = catch fs.remove("/tmp/foo")  -- denied
+end, {"fs:read"})
+```
+
+### Progressive restriction
+
+Coroutines can progressively restrict permissions as they delegate to less trusted code:
+
+```lua
+pledge("fs")
+pledge("network")
+
+-- First level: can read/write files
+local level1 = coroutine.create(function()
+  pledge("~exec")     -- no command execution
+  pledge("~network")  -- no network
+  
+  -- Second level: read-only filesystem
+  local level2 = coroutine.create(function()
+    pledge("~fs:write")  -- remove write capability
+    pledge("seal")
+    
+    -- Can only read files now
+    local data = io.open("/etc/hosts"):read("*a")
+    local ok = catch io.open("/tmp/x", "w")  -- denied
+  end)
+  coroutine.resume(level2)
+end)
+coroutine.resume(level1)
+```
+
+> **Note:** Permission changes in a coroutine are completely isolated. The parent thread's permissions remain unchanged regardless of what the coroutine does with its copy.
 
 ## Available permissions
 
