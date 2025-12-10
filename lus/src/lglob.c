@@ -119,8 +119,8 @@ int lus_glob_match_path(const char *pattern, const char *path,
     canon_path[PATH_MAX - 1] = '\0';
   }
 
-  /* Canonicalize the pattern if it looks like a path (starts with /) */
-  if (pattern[0] == '/') {
+  /* Canonicalize the pattern if it looks like a path (starts with / or .) */
+  if (pattern[0] == '/' || pattern[0] == '.') {
     /* Try to resolve the base part of the pattern (without wildcards) */
     size_t len = strlen(pattern);
     size_t i;
@@ -152,6 +152,14 @@ int lus_glob_match_path(const char *pattern, const char *path,
           /* Rebuild pattern with resolved prefix */
           snprintf(canon_pattern, PATH_MAX, "%s%s", resolved_prefix,
                    pattern + (last_sep - prefix));
+          pattern_to_use = canon_pattern;
+        }
+      } else if (last_sep == NULL && i > 0) {
+        /* Pattern like "dir/*" - try to resolve the prefix as a directory */
+        char resolved_prefix[PATH_MAX];
+        if (realpath(prefix, resolved_prefix) != NULL) {
+          snprintf(canon_pattern, PATH_MAX, "%s%s", resolved_prefix,
+                   pattern + i);
           pattern_to_use = canon_pattern;
         }
       }

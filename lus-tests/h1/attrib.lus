@@ -1,16 +1,6 @@
 global print, require, assert, type, string, table, getmetatable, setmetatable, tostring, _G, io, os, coroutine, math, package, rawget, pairs, pledge
 
-pledge("load", "fs:read=lus-tests/*", "seal")
-
---[[
-louka@LoukasMacStudio lus-1.0.0 % ./lus/builddir/lus lus-tests/h1/attrib.lus
-./lus/builddir/lus: permission "fs:read" denied for './lus-tests/framework.lus'
-stack traceback:
-        [C]: in ?
-        [C]: in global 'require'
-        lus-tests/h1/attrib.lus:5: in main chunk
-        [C]: in ?
-]]
+pledge("load", "fs:read=./lus-tests/*", "seal")
 
 local framework = require("lus-tests.framework")
 local tests = framework.new("attrib")
