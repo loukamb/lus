@@ -1,4 +1,4 @@
-global print, assert, error, type, tostring, setmetatable, coroutine, table, select, pledge
+global print, assert, error, type, tostring, setmetatable, coroutine, table, select, require, pledge
 
 pledge("load", "fs:read=./lus-tests/*", "seal")
 

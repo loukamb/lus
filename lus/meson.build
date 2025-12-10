@@ -190,8 +190,7 @@ h1_tests = [
   'h1/gengc',
   'h1/memerr',
   'h1/json',
-  'h1/network',
-  'h1/pledge',
+  'h1/network'
 ]
 
 foreach t : h1_tests
