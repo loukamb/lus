@@ -45,6 +45,7 @@ SOURCES=(
   "$SRC_DIR/lundump.c"
   "$SRC_DIR/lutf8lib.c"
   "$SRC_DIR/lvm.c"
+  "$SRC_DIR/lworkerlib.c"
   "$SRC_DIR/lzio.c"
   "$SCRIPT_DIR/lus_wasm.c"
   "$SCRIPT_DIR/lev_wasm_stubs.c"
@@ -55,11 +56,13 @@ echo "Building Lus WASM..."
 emcc "${SOURCES[@]}" \
   -I"$SRC_DIR" \
   -o "$OUT_DIR/lus.js" \
+  -pthread \
   -s MODULARIZE=1 \
   -s EXPORT_ES6=1 \
   -s EXPORTED_FUNCTIONS='["_lus_create","_lus_execute","_lus_destroy","_malloc","_free"]' \
   -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","UTF8ToString","stringToUTF8","lengthBytesUTF8"]' \
   -s ALLOW_MEMORY_GROWTH=1 \
+  -s PTHREAD_POOL_SIZE=4 \
   -s ENVIRONMENT='web,worker' \
   -s NO_EXIT_RUNTIME=1 \
   -O2 \

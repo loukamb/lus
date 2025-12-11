@@ -1,0 +1,4 @@
+# Cross-origin isolation headers for SharedArrayBuffer (WASM pthread support)
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
