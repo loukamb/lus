@@ -1,0 +1,12 @@
+-- processor.lus - Worker test script that processes messages from parent
+global worker, tostring
+
+while true do
+  local msg = worker.peek()
+  if msg == "STOP" then
+    worker.message("STOPPED")
+    break
+  else
+    worker.message("GOT: " .. tostring(msg))
+  end
+end

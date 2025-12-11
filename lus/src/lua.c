@@ -20,6 +20,7 @@
 #include "llimits.h"
 #include "lpledge.h"
 #include "lualib.h"
+#include "lworkerlib.h"
 
 #if !defined(LUA_PROGNAME)
 #define LUA_PROGNAME "lus"
@@ -34,6 +35,14 @@
 static lua_State *globalL = NULL;
 
 static const char *progname = LUA_PROGNAME;
+
+/*
+** Worker setup callback - gives workers the same libraries as main state
+*/
+static void worker_setup(lua_State *parent, lua_State *worker) {
+  (void)parent;
+  luaL_openselectedlibs(worker, ~0, 0); /* open all standard libraries */
+}
 
 #if defined(LUA_USE_POSIX) /* { */
 
@@ -759,6 +768,7 @@ static int pmain(lua_State *L) {
     lua_setfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
   }
   luai_openlibs(L);                      /* open standard libraries */
+  lus_onworker(L, worker_setup);         /* setup workers to get same libs */
   createargtable(L, argv, argc, script); /* create table 'arg' */
   lua_gc(L, LUA_GCRESTART);              /* start GC... */
   lua_gc(L, LUA_GCGEN);                  /* ...in generational mode */

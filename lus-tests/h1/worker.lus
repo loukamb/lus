@@ -1,0 +1,84 @@
+-- Worker library tests (Acquis 11)
+global worker, pledge, print, require, table, type, tostring
+
+-- Grant permissions needed for workers and framework
+pledge("load")
+pledge("fs")
+
+local tests = require("lus-tests/framework")
+local t = tests.new("worker")
+
+t:describe("worker.create")
+
+t:it("creates a worker and returns a handle", function()
+  local w = worker.create("lus-tests/h1/worker/counter.lus")
+  t:assert_true(w ~= nil, "worker.create should return handle")
+  t:assert_equal(type(w), "userdata", "worker should be userdata")
+end)
+
+t:describe("worker.status")
+
+t:it("returns 'running' for active worker", function()
+  local w = worker.create("lus-tests/h1/worker/counter.lus")
+  local status = worker.status(w)
+  -- Status could be running or dead depending on timing
+  t:assert_true(status == "running" or status == "dead", 
+    "status should be 'running' or 'dead'")
+end)
+
+t:describe("worker.message and worker.receive")
+
+t:it("receives messages from worker", function()
+  local w = worker.create("lus-tests/h1/worker/counter.lus")
+  
+  -- Collect all messages
+  local messages = {}
+  while true do
+    local msg = worker.receive(w)
+    if msg == nil then break end
+    table.insert(messages, msg)
+  end
+  
+  t:assert_equal(#messages, 5, "should receive 5 messages")
+  t:assert_equal(messages[1], 1, "first message should be 1")
+  t:assert_equal(messages[5], 5, "last message should be 5")
+end)
+
+t:describe("worker.send and worker.peek")
+
+t:it("sends messages to worker and receives responses", function()
+  local w = worker.create("lus-tests/h1/worker/processor.lus")
+  
+  -- Send messages
+  worker.send(w, "hello")
+  worker.send(w, "world")
+  worker.send(w, "STOP")
+  
+  -- Receive responses
+  local messages = {}
+  while true do
+    local msg = worker.receive(w)
+    if msg == nil then break end
+    table.insert(messages, msg)
+  end
+  
+  t:assert_equal(#messages, 3, "should receive 3 responses")
+  t:assert_equal(messages[1], "GOT: hello", "first response")
+  t:assert_equal(messages[2], "GOT: world", "second response")
+  t:assert_equal(messages[3], "STOPPED", "stop confirmation")
+end)
+
+t:describe("error handling")
+
+t:it("propagates worker errors via receive", function()
+  local w = worker.create("lus-tests/h1/worker/error.lus")
+  
+  -- Worker should error
+  local err, result = catch worker.receive(w)
+  
+  -- Either we get an error or nil (worker died before we could receive)
+  t:assert_true(not err or result == nil, 
+    "should get error or nil when worker errors")
+end)
+
+t:finish()

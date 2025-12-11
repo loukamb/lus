@@ -1,0 +1,6 @@
+-- counter.lus - Worker test script that sends a sequence of numbers
+global worker
+
+for i = 1, 5 do
+  worker.message(i)
+end

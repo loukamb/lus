@@ -995,9 +995,84 @@ lus_registerpledge(L, "fs", fs_granter);
 | `loadlib.c` | fs:read + load permission checks for require |
 | `meson.build` | Added new source files, pledge test |
 
+## Workers
 
+The `worker` library implements M:N concurrency using separate Lua interpreter states scheduled onto a thread pool.
 
+#### Architecture
 
+**Thread Pool (M threads):**
+- Initialized lazily on first `worker.create` call
+- M = number of logical CPU cores (capped at 32)
+- Threads wait on a shared condition variable for work
+- Workers are enqueued and dequeued from a runnable queue
+
+**Worker State (N workers):**
+- Each worker has its own `lua_State`, inbox, and outbox message queues
+- Reference counted for proper cleanup
+- Status: `RUNNING`, `BLOCKED`, `DEAD`, or `ERROR`
+
+#### Message Passing
+
+Messages are deep-copied between states using binary serialization:
+- Supported types: nil, boolean, number, integer, string, table (nested)
+- Unsupported types (userdata, threads, functions) error on serialize
+- Message queues protected by per-worker mutex
+
+**Format tags:**
+```c
+#define SER_NIL     0
+#define SER_BOOL    1
+#define SER_INT     2
+#define SER_NUM     3
+#define SER_STRING  4
+#define SER_TABLE   5
+```
+
+#### Lua API
+
+**Main thread:**
+- `worker.create(path, ...)` - spawn worker, returns handle
+- `worker.status(w)` - returns `"running"` or `"dead"`
+- `worker.send(w, value)` - send message to worker inbox
+- `worker.receive(w1, ...)` - blocking select-style receive from outboxes
+
+**Worker thread:**
+- `worker.message(value)` - send message to outbox (for main to receive)
+- `worker.peek()` - blocking receive from inbox
+
+#### C API for Embedders
+
+```c
+typedef void (*lus_WorkerSetup)(lua_State *parent, lua_State *worker);
+
+LUA_API void lus_worker_pool_init(lua_State *L);
+LUA_API void lus_worker_pool_shutdown(void);
+LUA_API void lus_onworker(lua_State *L, lus_WorkerSetup fn);
+LUA_API WorkerState *lus_worker_create(lua_State *L, const char *path);
+LUA_API int lus_worker_send(lua_State *L, WorkerState *w, int idx);
+LUA_API int lus_worker_receive(lua_State *L, WorkerState *w);
+LUA_API int lus_worker_status(WorkerState *w);
+```
+
+The `lus_onworker` callback is invoked when a new worker state is created, allowing embedders to open libraries and configure the worker environment. The REPL uses this to grant workers the same standard libraries as the main state.
+
+#### Permissions
+
+Workers require:
+- `load` pledge (to execute code)
+- `fs:read` pledge for the script path
+
+#### Modified/New Files
+
+| File | Changes |
+|------|---------|
+| `lworkerlib.h` | Thread pool, worker state, message queue structs; C API |
+| `lworkerlib.c` | Core implementation (~860 lines) |
+| `lualib.h` | `LUA_WORKERLIBNAME`, `luaopen_worker` declaration |
+| `linit.c` | Worker library registration |
+| `lua.c` | `lus_onworker` callback registration in REPL |
+| `meson.build` | Added source file, thread dependency, test |
 
 
 

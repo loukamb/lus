@@ -63,6 +63,12 @@ else
   lus_c_args += ['-DLUA_USE_POSIX', '-DLUS_PLATFORM_POSIX']
 endif
 
+# Threading library (for worker support)
+if system != 'windows'
+  thread_dep = dependency('threads', required: true)
+  lus_deps += thread_dep
+endif
+
 # Core source files
 core_sources = files(
   'src/lapi.c',
@@ -106,6 +112,7 @@ lib_sources = files(
   'src/ljsonlib.c',
   'src/lfslib.c',
   'src/lnetlib.c',
+  'src/lworkerlib.c',
   'src/linit.c',
 )
 
@@ -190,7 +197,8 @@ h1_tests = [
   'h1/gengc',
   'h1/memerr',
   'h1/json',
-  'h1/network'
+  'h1/network',
+  'h1/worker'
 ]
 
 foreach t : h1_tests

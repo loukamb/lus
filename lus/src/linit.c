@@ -21,19 +21,14 @@
 ** Standard Libraries. (Must be listed in the same ORDER of their
 ** respective constants LUA_<libname>K.)
 */
-static const luaL_Reg stdlibs[] = {{LUA_GNAME, luaopen_base},
-                                   {LUA_LOADLIBNAME, luaopen_package},
-                                   {LUA_COLIBNAME, luaopen_coroutine},
-                                   {LUA_DBLIBNAME, luaopen_debug},
-                                   {LUA_IOLIBNAME, luaopen_io},
-                                   {LUA_MATHLIBNAME, luaopen_math},
-                                   {LUA_OSLIBNAME, luaopen_os},
-                                   {LUA_STRLIBNAME, luaopen_string},
-                                   {LUA_TABLIBNAME, luaopen_table},
-                                   {LUA_UTF8LIBNAME, luaopen_utf8},
-                                   {LUA_FSLIBNAME, luaopen_fs},
-                                   {LUA_NETLIBNAME, luaopen_network},
-                                   {NULL, NULL}};
+static const luaL_Reg stdlibs[] = {
+    {LUA_GNAME, luaopen_base},           {LUA_LOADLIBNAME, luaopen_package},
+    {LUA_COLIBNAME, luaopen_coroutine},  {LUA_DBLIBNAME, luaopen_debug},
+    {LUA_IOLIBNAME, luaopen_io},         {LUA_MATHLIBNAME, luaopen_math},
+    {LUA_OSLIBNAME, luaopen_os},         {LUA_STRLIBNAME, luaopen_string},
+    {LUA_TABLIBNAME, luaopen_table},     {LUA_UTF8LIBNAME, luaopen_utf8},
+    {LUA_FSLIBNAME, luaopen_fs},         {LUA_NETLIBNAME, luaopen_network},
+    {LUA_WORKERLIBNAME, luaopen_worker}, {NULL, NULL}};
 
 /*
 ** require and preload selected standard libraries
@@ -51,7 +46,7 @@ LUALIB_API void luaL_openselectedlibs(lua_State *L, int load, int preload) {
       lua_setfield(L, -2, lib->name); /* add library to PRELOAD table */
     }
   }
-  lua_assert((mask >> 1) == LUA_NETLIBK);
+  lua_assert((mask >> 1) == LUA_WORKERLIBK);
   lua_pop(L, 1); /* remove PRELOAD table */
 
   /* Register JSON global functions (tojson, fromjson) */

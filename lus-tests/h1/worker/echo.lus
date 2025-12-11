@@ -1,0 +1,8 @@
+-- echo.lus - Worker test script that echoes back its arguments
+global worker
+
+-- Get arguments passed to worker
+local args = {...}
+for i, arg in ipairs(args) do
+  worker.message(arg)
+end

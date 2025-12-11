@@ -1,0 +1,142 @@
+---
+order: 111
+title: Acquis 11 - Workers
+acquis: true
+draft: true
+---
+
+Workers in Lus allows for concurrency through the instantiation of separate interpreter states running in their own threads. While workers appear to the user as isolated execution contexts, the underlying implementation utilizes a thread pool (M:N) architecture.
+
+Rather than mapping one worker strictly to one operating system thread, Lus utilizes a fixed number of OS threads (M) to service a potentially larger number of worker states (N). The Lus runtime creates a pool of OS threads upon initialization (typically equal to the number of logical CPU cores), and worker states are scheduled onto these threads dynamically. 
+
+## Basic usage
+
+Workers can be created by passing a filepath and optional arguments to the `worker.create` function:
+
+```lua
+local p = worker.create("script.lus")
+
+-- Worker with arguments.
+local w = worker.create("script.lus", { a = 1 }, "foobar")
+````
+
+Arguments passed to a worker will be copied to the new interpreter state and are accessible in varargs (`...`). Userdata and threads are **not** copied to the new state and attempts to pass any will error before the worker is created.
+
+The current worker state can be retrieved with `worker.status`, similar to `coroutine.status`, which can either return `running` when a worker is still running or `dead` when the worker has returned.
+
+## Message passing
+
+Communication between the main thread and Workers is asynchronous and bi-directional. Messages are deep-copied between states to ensure thread safety.
+
+### Worker to Main (`message` and `receive`)
+
+Workers can send messages to their parent state with the `worker.message` global function. The parent state receives these by passing the worker instance(s) to `worker.receive`.
+
+**`script.lus`**
+
+```lua
+global worker
+
+-- Send data back to parent
+worker.message("Process started")
+for i = 1, 10 do
+  worker.message(i)
+end
+```
+
+**`main.lus`**
+
+```lua
+global worker
+
+local p = worker.create("script.lus")
+
+-- Blocks until a message is available or the worker dies
+while result = worker.receive(p) do
+  print("Got result:", result)
+end
+```
+
+**Select-like Behavior:**
+`worker.receive` accepts multiple workers as arguments. It behaves like a `select` operation: it blocks until **at least one** of the provided workers has a message available. It does *not* wait for all workers.
+
+The return values correspond to the order of the arguments passed. If a worker has no message ready, its corresponding return value is `nil`.
+
+```lua
+local p1 = worker.create("slow_task.lus")
+local p2 = worker.create("fast_task.lus")
+
+while true do
+  -- Block until either p1 OR p2 sends a message
+  local res1, res2 = worker.receive(p1, p2)
+  
+  if res1 then
+    print("p1 says:", res1)
+  end
+  
+  if res2 then
+    print("p2 says:", res2)
+  end
+
+  -- Break if both workers are dead and empty
+  if worker.status(p1) == "dead" and worker.status(p2) == "dead" 
+     and not res1 and not res2 then
+     break
+  end
+end
+```
+
+### Main to Worker (`send` and `peek`)
+
+The parent state can send messages to a running worker using `worker.send`. The worker consumes these messages using `worker.peek`.
+
+**`main.lus`**
+
+```lua
+local w = worker.create("processor.lus")
+
+-- Send instructions to the running worker
+worker.send(w, "START")
+worker.send(w, { data = {1, 2, 3} })
+```
+
+**`processor.lus`**
+
+```lua
+global worker
+
+while true do
+  -- worker.peek() blocks until the parent sends a message
+  local msg = worker.peek()
+  
+  if msg == "START" then
+    print("Starting...")
+  elseif type(msg) == "table" then
+    process_data(msg.data)
+  elseif msg == "STOP" then
+    break
+  end
+end
+```
+
+Like `receive`, `worker.peek` queues messages. If multiple messages are sent before `peek` is called, they are stored in the state's inbox. If `worker.peek` is called when the queue is empty, it blocks until a message arrives.
+
+## Error handling
+
+Errors in workers will also queue and will be thrown in `worker.receive`. The following pattern is recommended if you are expecting workers to error:
+
+```lua
+while err, result = catch worker.receive(p) do
+  if err then
+    print("Worker crashed:", err)
+    break
+  end
+  -- process result
+end
+```
+
+## Permissions
+
+Usage of workers requires the `load` and the requisite `fs:read` pledges like `require`.
+
+Workers will inherit the parent's permissions, but can be restricted further by invoking `pledge` in the worker state.

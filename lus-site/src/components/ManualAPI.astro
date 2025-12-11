@@ -5,8 +5,8 @@
 <!-- Environment Functions -->
 <h2 id="pledge">pledge (name...)</h2>
 <p>
-  Grants or checks a permission. Returns <code>true</code> if the permission was
-  granted, <code>false</code> if it was denied or the state is sealed.
+  Grants or checks a permission. Returns <code>true</code> if the permission was granted,
+  <code>false</code> if it was denied or the state is sealed.
 </p>
 <p>
   The <code>name</code> arguments specify the permissions to grant or check.
@@ -38,8 +38,8 @@ pledge("seal")         -- lock permissions</code></pre>
   the permission being granted or checked.
 </p>
 <p>
-  <code>status</code> indicates the operation: <code>LUS_PLEDGE_GRANT</code> for
-  new grants,
+  <code>status</code> indicates the operation: <code>LUS_PLEDGE_GRANT</code> for new
+  grants,
   <code>LUS_PLEDGE_UPDATE</code> for updates, <code>LUS_PLEDGE_CHECK</code> for access
   checks.
 </p>
@@ -176,8 +176,7 @@ LUAMOD_API int luaopen_mylib(lua_State *L) {
 <pre><code>int lus_revokepledge(lua_State *L, const char *name);</code></pre>
 <p>
   Revokes a previously granted permission. Clears all stored values for the
-  permission. Returns <code>1</code> on success, <code>0</code> if sealed or not
-  found.
+  permission. Returns <code>1</code> on success, <code>0</code> if sealed or not found.
 </p>
 
 <h2 id="lus_issealed">lus_issealed</h2>
@@ -196,3 +195,88 @@ LUAMOD_API int luaopen_mylib(lua_State *L) {
   (e.g., "fs:read") is granted for <code>path</code>. Raises an error if denied.
 </p>
 <pre><code>lus_checkfsperm(L, "fs:read", "/etc/passwd");  /* error if denied */</code></pre>
+
+<!-- Worker Library -->
+
+<h2 id="worker.create">worker.create (path, ...)</h2>
+<p>
+  Spawns a new worker running the script at <code>path</code>. Optional varargs
+  are serialized and can be received by the worker via <code>worker.peek()</code
+  >. Returns a worker handle. Requires <code>load</code> and <code>fs:read</code
+  > pledges.
+</p>
+<pre><code>{`local w = worker.create("worker.lus", "hello", 42)
+-- worker can receive "hello" and 42 via worker.peek()`}</code></pre>
+
+<h2 id="worker.status">worker.status (w)</h2>
+<p>
+  Returns the status of worker <code>w</code>: <code>"running"</code> if the worker
+  is still executing, or <code>"dead"</code> if it has finished or errored.
+</p>
+
+<h2 id="worker.receive">worker.receive (w1, ...)</h2>
+<p>
+  Blocking select-style receive from one or more workers. Blocks until at least
+  one worker has a message. Returns one value per worker: the message if
+  available, or <code>nil</code> if that worker has no message. Propagates worker
+  errors.
+</p>
+<pre><code>{`local msg = worker.receive(w)
+-- or multi-worker select:
+local m1, m2 = worker.receive(w1, w2)`}</code></pre>
+
+<h2 id="worker.send">worker.send (w, value)</h2>
+<p>
+  Sends <code>value</code> to worker <code>w</code>'s inbox. The worker can
+  receive it via <code>worker.peek()</code>. Values are deep-copied.
+</p>
+
+<h2 id="worker.message">worker.message (value)</h2>
+<p>
+  <em>(Worker-side only)</em> Sends <code>value</code> to the worker's outbox for
+  the parent to receive via <code>worker.receive()</code>.
+</p>
+
+<h2 id="worker.peek">worker.peek ()</h2>
+<p>
+  <em>(Worker-side only)</em> Blocking receive from the worker's inbox. Blocks until
+  a message from the parent (via <code>worker.send()</code>) is available.
+</p>
+
+<!-- Worker C API -->
+
+<h2 id="lus_WorkerSetup">lus_WorkerSetup</h2>
+<pre><code>typedef void (*lus_WorkerSetup)(lua_State *parent, lua_State *worker);</code></pre>
+<p>
+  Callback type for worker state initialization. Called when a new worker is
+  created, allowing embedders to configure the worker's Lua state (e.g., open
+  libraries).
+</p>
+
+<h2 id="lus_onworker">lus_onworker</h2>
+<pre><code>void lus_onworker(lua_State *L, lus_WorkerSetup fn);</code></pre>
+<p>
+  Registers a callback to be invoked when new worker states are created.
+  Typically used to open libraries in worker states.
+</p>
+<pre><code>{`static void worker_setup(lua_State *parent, lua_State *worker) {
+  luaL_openlibs(worker);
+}
+lus_onworker(L, worker_setup);`}</code></pre>
+
+<h2 id="lus_worker_pool_init">lus_worker_pool_init</h2>
+<pre><code>void lus_worker_pool_init(lua_State *L);</code></pre>
+<p>
+  Initializes the global worker thread pool. Called automatically on first
+  <code>worker.create()</code>. M = number of CPU cores (capped at 32).
+</p>
+
+<h2 id="lus_worker_pool_shutdown">lus_worker_pool_shutdown</h2>
+<pre><code>void lus_worker_pool_shutdown(void);</code></pre>
+<p>Shuts down the worker thread pool. Waits for all threads to complete.</p>
+
+<h2 id="luaopen_worker">luaopen_worker</h2>
+<pre><code>int luaopen_worker(lua_State *L);</code></pre>
+<p>
+  Opens the worker library. Called automatically by <code>luaL_openlibs</code>.
+</p>
