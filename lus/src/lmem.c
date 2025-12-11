@@ -9,7 +9,6 @@
 
 #include "lprefix.h"
 
-
 #include <stddef.h>
 
 #include "lua.h"
@@ -20,7 +19,6 @@
 #include "lmem.h"
 #include "lobject.h"
 #include "lstate.h"
-
 
 /*
 ** About the realloc function:
@@ -39,12 +37,10 @@
 ** block to the new size.
 */
 
-
 /*
 ** Macro to call the allocation function.
 */
 #define callfrealloc(g, block, os, ns) ((*g->frealloc)(g->ud, block, os, ns))
-
 
 /*
 ** When an allocation fails, it will try again after an emergency
@@ -55,7 +51,6 @@
 ** a collection step.
 */
 #define cantryagain(g) (completestate(g) && !g->gcstopem)
-
 
 #if defined(EMERGENCYGCTESTS)
 /*
@@ -73,7 +68,6 @@ static void *firsttry(global_State *g, void *block, size_t os, size_t ns) {
 #define firsttry(g, block, os, ns) callfrealloc(g, block, os, ns)
 #endif
 
-
 /*
 ** {==================================================================
 ** Functions to allocate/deallocate arrays for the Parser
@@ -87,7 +81,6 @@ static void *firsttry(global_State *g, void *block, size_t os, size_t ns) {
 */
 #define MINSIZEARRAY 4
 
-
 void *luaM_growaux_(lua_State *L, void *block, int nelems, int *psize,
                     unsigned size_elems, int limit, const char *what) {
   void *newblock;
@@ -98,8 +91,7 @@ void *luaM_growaux_(lua_State *L, void *block, int nelems, int *psize,
     if (l_unlikely(size >= limit)) /* cannot grow even a little? */
       luaG_runerror(L, "too many %s (limit is %d)", what, limit);
     size = limit; /* still have at least one free place */
-  }
-  else {
+  } else {
     size *= 2;
     if (size < MINSIZEARRAY)
       size = MINSIZEARRAY; /* minimum size */
@@ -111,7 +103,6 @@ void *luaM_growaux_(lua_State *L, void *block, int nelems, int *psize,
   *psize = size; /* update only when everything else is OK */
   return newblock;
 }
-
 
 /*
 ** In prototypes, the size of the array is also its number of
@@ -132,11 +123,9 @@ void *luaM_shrinkvector_(lua_State *L, void *block, int *size, int final_n,
 
 /* }================================================================== */
 
-
 l_noret luaM_toobig(lua_State *L) {
   luaG_runerror(L, "memory allocation error: block too big");
 }
-
 
 /*
 ** Free memory
@@ -148,7 +137,6 @@ void luaM_free_(lua_State *L, void *block, size_t osize) {
   g->GCdebt += cast(l_mem, osize);
 }
 
-
 /*
 ** In case of allocation fail, this function will do an emergency
 ** collection to free some memory and then try the allocation again.
@@ -158,11 +146,9 @@ static void *tryagain(lua_State *L, void *block, size_t osize, size_t nsize) {
   if (cantryagain(g)) {
     luaC_fullgc(L, 1); /* try to free some memory... */
     return callfrealloc(g, block, osize, nsize); /* try again */
-  }
-  else
+  } else
     return NULL; /* cannot run an emergency collection */
 }
-
 
 /*
 ** Generic allocation routine.
@@ -182,14 +168,12 @@ void *luaM_realloc_(lua_State *L, void *block, size_t osize, size_t nsize) {
   return newblock;
 }
 
-
 void *luaM_saferealloc_(lua_State *L, void *block, size_t osize, size_t nsize) {
   void *newblock = luaM_realloc_(L, block, osize, nsize);
   if (l_unlikely(newblock == NULL && nsize > 0)) /* allocation failed? */
     luaM_error(L);
   return newblock;
 }
-
 
 void *luaM_malloc_(lua_State *L, size_t size, int tag) {
   if (size == 0)
@@ -206,3 +190,88 @@ void *luaM_malloc_(lua_State *L, size_t size, int tag) {
     return newblock;
   }
 }
+
+/*
+** {==================================================================
+** Arena allocator implementation
+** ===================================================================
+*/
+
+/*
+** Create a new arena block with the given minimum size.
+*/
+static lusM_ArenaBlock *lusM_newblock(lua_State *L, size_t minsize) {
+  size_t blocksize = sizeof(lusM_ArenaBlock) - 1 + minsize;
+  lusM_ArenaBlock *block =
+      cast(lusM_ArenaBlock *, luaM_malloc_(L, blocksize, 0));
+  block->next = NULL;
+  block->size = minsize;
+  block->used = 0;
+  return block;
+}
+
+/*
+** Create a new arena with the given default block size.
+** If blocksize is 0, uses LUSM_ARENA_BLOCKSIZE.
+*/
+lusM_Arena *lusM_newarena(lua_State *L, size_t blocksize) {
+  lusM_Arena *a;
+  if (blocksize == 0)
+    blocksize = LUSM_ARENA_BLOCKSIZE;
+  a = cast(lusM_Arena *, luaM_malloc_(L, sizeof(lusM_Arena), 0));
+  a->L = L;
+  a->blocksize = blocksize;
+  a->head = lusM_newblock(L, blocksize);
+  a->current = a->head;
+  return a;
+}
+
+/*
+** Allocate 'size' bytes from the arena.
+** Uses bump allocation from current block; creates new block if needed.
+** Returns pointer aligned to sizeof(void*).
+*/
+void *lusM_arenaalloc(lusM_Arena *a, size_t size) {
+  size_t align = sizeof(void *);
+  size_t aligned_size;
+  lusM_ArenaBlock *block = a->current;
+  size_t offset;
+
+  /* align size to pointer boundary */
+  aligned_size = (size + align - 1) & ~(align - 1);
+
+  /* check if current block has space */
+  offset = block->used;
+  if (offset + aligned_size <= block->size) {
+    block->used += aligned_size;
+    return cast(void *, block->data + offset);
+  }
+
+  /* need a new block - use larger of aligned_size or default blocksize */
+  {
+    size_t newsize =
+        (aligned_size > a->blocksize) ? aligned_size : a->blocksize;
+    lusM_ArenaBlock *newblock = lusM_newblock(a->L, newsize);
+    a->current->next = newblock;
+    a->current = newblock;
+    newblock->used = aligned_size;
+    return cast(void *, newblock->data);
+  }
+}
+
+/*
+** Free all blocks in the arena and the arena struct itself.
+*/
+void lusM_freearena(lusM_Arena *a) {
+  lua_State *L = a->L;
+  lusM_ArenaBlock *block = a->head;
+  while (block != NULL) {
+    lusM_ArenaBlock *next = block->next;
+    size_t blocksize = sizeof(lusM_ArenaBlock) - 1 + block->size;
+    luaM_free_(L, block, blocksize);
+    block = next;
+  }
+  luaM_free_(L, a, sizeof(lusM_Arena));
+}
+
+/* }================================================================== */

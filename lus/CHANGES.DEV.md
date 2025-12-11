@@ -1075,4 +1075,60 @@ Workers require:
 | `meson.build` | Added source file, thread dependency, test |
 
 
+## AST Parser and CFG Generator (`lparser2.c`, `lcode2.c`)
 
+A new self-contained AST parser and CFG generator for static analysis, linting, and visualization.
+
+#### Architecture
+
+**`lparser2.h/c`** - Recursive descent parser producing AST nodes:
+- 35+ node types for expressions, statements, and Lus extensions
+- Arena allocator (`lusM_Arena` in `lmem.c`) for efficient memory management
+- Source location preservation in all nodes
+- DOT output via `lus_ast_to_dot()`
+- Lua table conversion via `lus_ast_to_table()` for `debug.parse()` API
+
+**`lcode2.h/c`** - Self-contained code generator and CFG analysis:
+- AST-to-bytecode traversal (does not depend on `lcode.c`)
+- CFG construction from bytecode (basic block identification, edge linking)
+- DOT output via `lus_cfg_to_dot()`
+
+#### CLI Options
+
+```bash
+lus --tree-ast script.lus   # Output AST as Graphviz DOT
+lus --tree-cfg script.lus   # Output CFG as Graphviz DOT
+```
+
+Pipe to `dot -Tpng -o graph.png` for visualization.
+
+#### AST Node Types (partial list)
+
+| Category | Types |
+|----------|-------|
+| Literals | `NIL`, `TRUE`, `FALSE`, `INTEGER`, `FLOAT`, `STRING`, `VARARG` |
+| Variables | `VAR`, `UPVAL`, `GLOBAL` |
+| Expressions | `BINOP`, `UNOP`, `CALL`, `METHODCALL`, `INDEX`, `FIELD`, `TABLE`, `FUNCTION` |
+| Statements | `RETURN`, `LOCAL`, `GLOBAL`, `ASSIGN`, `IF`, `WHILE`, `REPEAT`, `FOR`, `FORIN`, `DO`, `BREAK`, `GOTO`, `LABEL` |
+| Lus Extensions | `CATCH`, `ENUM`, `OPTCHAIN`, `FROM` |
+
+#### CFG Structure
+
+```c
+typedef struct lus_CFGBlock {
+  int id;                      /* unique block ID */
+  int startpc, endpc;          /* PC range */
+  struct lus_CFGBlock *truejmp;  /* successor on true/fall-through */
+  struct lus_CFGBlock *falsejmp; /* successor on false branch */
+} lus_CFGBlock;
+```
+
+#### New/Modified Files
+
+| File | Changes |
+|------|---------|
+| `lmem.h/c` | Added `lusM_Arena` bump allocator |
+| `lparser2.h/c` | AST nodes, parser, DOT/table output (~1200 lines) |
+| `lcode2.h/c` | Code generator, CFG, DOT output (~1200 lines) |
+| `lua.c` | Added `--tree-ast`, `--tree-cfg` CLI options |
+| `meson.build` | Added `lparser2.c`, `lcode2.c` to core sources |

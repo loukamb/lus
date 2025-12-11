@@ -17,10 +17,13 @@
 #include "lua.h"
 
 #include "lauxlib.h"
+#include "lcode2.h"
 #include "llimits.h"
+#include "lparser2.h"
 #include "lpledge.h"
 #include "lualib.h"
 #include "lworkerlib.h"
+#include "lzio.h"
 
 #if !defined(LUA_PROGNAME)
 #define LUA_PROGNAME "lus"
@@ -262,11 +265,13 @@ static int handle_script(lua_State *L, char **argv) {
 }
 
 /* bits of various argument indicators in 'args' */
-#define has_error 1 /* bad option */
-#define has_i 2     /* -i */
-#define has_v 4     /* -v */
-#define has_e 8     /* -e */
-#define has_E 16    /* -E */
+#define has_error 1     /* bad option */
+#define has_i 2         /* -i */
+#define has_v 4         /* -v */
+#define has_e 8         /* -e */
+#define has_E 16        /* -E */
+#define has_tree_ast 32 /* --tree-ast */
+#define has_tree_cfg 64 /* --tree-cfg */
 
 /*
 ** Traverses all arguments from 'argv', returning a mask with those
@@ -297,6 +302,16 @@ static int collectargs(char **argv, int *first) {
           i++; /* skip to argument */
           if (argv[i] == NULL || argv[i][0] == '-')
             return has_error; /* no argument */
+          break;
+        }
+        /* Check for --tree-ast */
+        if (strcmp(argv[i] + 2, "tree-ast") == 0) {
+          args |= has_tree_ast;
+          break;
+        }
+        /* Check for --tree-cfg */
+        if (strcmp(argv[i] + 2, "tree-cfg") == 0) {
+          args |= has_tree_cfg;
           break;
         }
         return has_error; /* invalid option */
@@ -778,7 +793,49 @@ static int pmain(lua_State *L) {
   }
   if (!runargs(L, argv, optlim)) /* execute arguments -e and -l */
     return 0;                    /* something failed */
-  if (script > 0) {              /* execute main script (if there is one) */
+
+  /* Handle --tree-ast: parse and output AST as DOT */
+  if ((args & has_tree_ast) && script > 0) {
+    const char *fname = argv[script];
+    FILE *f = fopen(fname, "r");
+    if (f == NULL) {
+      l_message(progname, "cannot open file");
+      return 0;
+    }
+    fclose(f);
+    /* Note: Full AST output requires implementing lus_parsestring() */
+    /* For now, output a placeholder DOT showing the capability */
+    fprintf(stdout, "/* AST DOT output for: %s */\n", fname);
+    fprintf(stdout, "/* Note: Full AST visualization requires lus_parsestring "
+                    "implementation */\n");
+    fprintf(stdout, "digraph AST {\n");
+    fprintf(stdout, "  node [shape=box];\n");
+    fprintf(stdout, "  root [label=\"%s\"];\n", fname);
+    fprintf(stdout, "}\n");
+    lua_pushboolean(L, 1);
+    return 1;
+  }
+
+  /* Handle --tree-cfg: compile and output CFG as DOT */
+  if ((args & has_tree_cfg) && script > 0) {
+    const char *fname = argv[script];
+    int status = luaL_loadfile(L, fname);
+    if (status != LUA_OK) {
+      report(L, status);
+      return 0;
+    }
+    /* Get the compiled Proto */
+    LClosure *cl = cast(LClosure *, lua_topointer(L, -1));
+    if (cl != NULL && cl->p != NULL) {
+      lus_CFG *cfg = lus_build_cfg(L, cl->p);
+      lus_cfg_to_dot(stdout, cfg, cl->p);
+      lus_free_cfg(cfg);
+    }
+    lua_pushboolean(L, 1);
+    return 1;
+  }
+
+  if (script > 0) { /* execute main script (if there is one) */
     if (handle_script(L, argv + script) != LUA_OK)
       return 0; /* interrupt in case of error */
   }

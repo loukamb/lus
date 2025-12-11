@@ -69,10 +69,17 @@ if system != 'windows'
   lus_deps += thread_dep
 endif
 
+# Optional: enable new AST-based parser (experimental)
+new_parser = get_option('new_parser')
+if new_parser
+  lus_c_args += '-DLUS_NEW_PARSER'
+endif
+
 # Core source files
 core_sources = files(
   'src/lapi.c',
   'src/lcode.c',
+  'src/lcode2.c',
   'src/lctype.c',
   'src/ldebug.c',
   'src/ldo.c',
@@ -86,6 +93,7 @@ core_sources = files(
   'src/lobject.c',
   'src/lopcodes.c',
   'src/lparser.c',
+  'src/lparser2.c',
   'src/lpledge.c',
   'src/lstate.c',
   'src/lstring.c',
