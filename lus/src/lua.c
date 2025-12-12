@@ -16,10 +16,10 @@
 
 #include "lua.h"
 
+#include "last.h"
 #include "lauxlib.h"
-#include "lcode2.h"
-#include "llimits.h"
-#include "lparser2.h"
+#include "lmem.h"
+#include "lparser.h"
 #include "lpledge.h"
 #include "lualib.h"
 #include "lworkerlib.h"
@@ -38,6 +38,9 @@
 static lua_State *globalL = NULL;
 
 static const char *progname = LUA_PROGNAME;
+
+static const char *astgraph_output = NULL; /* --ast-graph output file */
+static const char *astjson_output = NULL;  /* --ast-json output file */
 
 /*
 ** Worker setup callback - gives workers the same libraries as main state
@@ -105,6 +108,8 @@ static void print_usage(const char *badoption) {
       "  -W        turn warnings on\n"
       "  -P perm   grant permission (e.g., -Pfs:read, -Pnetwork)\n"
       "  --pledge perm  same as -P\n"
+      "  --ast-graph file  dump AST to .dot file (does not run script)\n"
+      "  --ast-json file   dump AST to JSON file (does not run script)\n"
       "  --        stop handling options\n"
       "  -         stop handling options and execute stdin\n",
       progname);
@@ -263,15 +268,221 @@ static int handle_script(lua_State *L, char **argv) {
   }
   return report(L, status);
 }
+/*
+** String reader for AST graph generation
+*/
+typedef struct {
+  const char *s;
+  size_t size;
+} AstGraphReader;
+
+static const char *astgraph_getS(lua_State *L, void *ud, size_t *sz) {
+  AstGraphReader *ls = (AstGraphReader *)ud;
+  (void)L; /* unused */
+  if (ls->size == 0)
+    return NULL;
+  *sz = ls->size;
+  ls->size = 0;
+  return ls->s;
+}
+
+/*
+** Handle --ast-graph option: parse script and dump AST to .dot file
+*/
+static int handle_astgraph(lua_State *L, const char *fname,
+                           const char *output) {
+  FILE *f;
+  char *content;
+  long fsize;
+  LusAst *ast;
+  Mbuffer buff;
+  Dyndata dyd;
+  ZIO z;
+  AstGraphReader reader;
+  int c;
+
+  /* Read file content */
+  f = fopen(fname, "r");
+  if (f == NULL) {
+    l_message(progname, "cannot open file for AST dump");
+    return 0;
+  }
+  fseek(f, 0, SEEK_END);
+  fsize = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  content = (char *)malloc(fsize + 1);
+  if (content == NULL) {
+    fclose(f);
+    l_message(progname, "out of memory");
+    return 0;
+  }
+  if (fread(content, 1, fsize, f) != (size_t)fsize) {
+    fclose(f);
+    free(content);
+    l_message(progname, "cannot read file");
+    return 0;
+  }
+  content[fsize] = '\0';
+  fclose(f);
+
+  /* Parse with AST generation */
+  ast = lusA_new(L);
+  if (ast == NULL) {
+    free(content);
+    l_message(progname, "cannot create AST");
+    return 0;
+  }
+
+  /* Initialize parser data structures */
+  luaZ_initbuffer(L, &buff);
+  dyd.actvar.arr = NULL;
+  dyd.actvar.size = 0;
+  dyd.gt.arr = NULL;
+  dyd.gt.size = 0;
+  dyd.label.arr = NULL;
+  dyd.label.size = 0;
+
+  /* Initialize reader */
+  reader.s = content;
+  reader.size = (size_t)fsize;
+  luaZ_init(L, &z, astgraph_getS, &reader);
+  c = zgetc(&z); /* read first character */
+
+  /* Check for binary chunk */
+  if (c == LUA_SIGNATURE[0]) {
+    lusA_free(L, ast);
+    luaZ_freebuffer(L, &buff);
+    free(content);
+    l_message(progname, "cannot parse binary chunk");
+    return 0;
+  }
+
+  /* Parse */
+  luaY_parser(L, &z, &buff, &dyd, fname, c, ast);
+
+  /* Clean up parser data */
+  luaZ_freebuffer(L, &buff);
+  luaM_freearray(L, dyd.actvar.arr, cast_sizet(dyd.actvar.size));
+  luaM_freearray(L, dyd.gt.arr, cast_sizet(dyd.gt.size));
+  luaM_freearray(L, dyd.label.arr, cast_sizet(dyd.label.size));
+  lua_pop(L, 1); /* remove closure */
+
+  free(content);
+
+  /* Dump AST to .dot file */
+  if (!lusA_tographviz(ast, output)) {
+    lusA_free(L, ast);
+    l_message(progname, "cannot write AST graph file");
+    return 0;
+  }
+
+  lua_writestringerror("AST graph written to %s\n", output);
+
+  lusA_free(L, ast);
+  return 1;
+}
+
+/*
+** Handle --ast-json option: parse script and dump AST to JSON file
+*/
+static int handle_astjson(lua_State *L, const char *fname, const char *output) {
+  FILE *f;
+  char *content;
+  long fsize;
+  LusAst *ast;
+  Mbuffer buff;
+  Dyndata dyd;
+  ZIO z;
+  AstGraphReader reader;
+  int c;
+
+  /* Read file content */
+  f = fopen(fname, "r");
+  if (f == NULL) {
+    l_message(progname, "cannot open file for AST dump");
+    return 0;
+  }
+  fseek(f, 0, SEEK_END);
+  fsize = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  content = (char *)malloc(fsize + 1);
+  if (content == NULL) {
+    fclose(f);
+    l_message(progname, "out of memory");
+    return 0;
+  }
+  if (fread(content, 1, fsize, f) != (size_t)fsize) {
+    fclose(f);
+    free(content);
+    l_message(progname, "cannot read file");
+    return 0;
+  }
+  content[fsize] = '\0';
+  fclose(f);
+
+  /* Parse with AST generation */
+  ast = lusA_new(L);
+  if (ast == NULL) {
+    free(content);
+    l_message(progname, "cannot create AST");
+    return 0;
+  }
+
+  /* Initialize parser data structures */
+  luaZ_initbuffer(L, &buff);
+  dyd.actvar.arr = NULL;
+  dyd.actvar.size = 0;
+  dyd.gt.arr = NULL;
+  dyd.gt.size = 0;
+  dyd.label.arr = NULL;
+  dyd.label.size = 0;
+
+  /* Initialize reader */
+  reader.s = content;
+  reader.size = (size_t)fsize;
+  luaZ_init(L, &z, astgraph_getS, &reader);
+  c = zgetc(&z); /* read first character */
+
+  /* Check for binary chunk */
+  if (c == LUA_SIGNATURE[0]) {
+    lusA_free(L, ast);
+    luaZ_freebuffer(L, &buff);
+    free(content);
+    l_message(progname, "cannot parse binary chunk");
+    return 0;
+  }
+
+  /* Parse */
+  luaY_parser(L, &z, &buff, &dyd, fname, c, ast);
+
+  /* Clean up parser data */
+  luaZ_freebuffer(L, &buff);
+  luaM_freearray(L, dyd.actvar.arr, cast_sizet(dyd.actvar.size));
+  luaM_freearray(L, dyd.gt.arr, cast_sizet(dyd.gt.size));
+  luaM_freearray(L, dyd.label.arr, cast_sizet(dyd.label.size));
+  lua_pop(L, 1); /* remove closure */
+
+  free(content);
+
+  /* Dump AST to JSON file */
+  if (!lusA_tojson(ast, output)) {
+    lusA_free(L, ast);
+    l_message(progname, "cannot write AST JSON file");
+    return 0;
+  }
+
+  lua_writestringerror("AST JSON written to %s\n", output);
+
+  lusA_free(L, ast);
+  return 1;
+}
 
 /* bits of various argument indicators in 'args' */
-#define has_error 1     /* bad option */
-#define has_i 2         /* -i */
-#define has_v 4         /* -v */
-#define has_e 8         /* -e */
-#define has_E 16        /* -E */
-#define has_tree_ast 32 /* --tree-ast */
-#define has_tree_cfg 64 /* --tree-cfg */
+#define has_error 1 /* bad option */
+#define has_i 2     /* -i */
+#define has_v 4     /* -v */
+#define has_e 8     /* -e */
+#define has_E 16    /* -E */
 
 /*
 ** Traverses all arguments from 'argv', returning a mask with those
@@ -304,14 +515,18 @@ static int collectargs(char **argv, int *first) {
             return has_error; /* no argument */
           break;
         }
-        /* Check for --tree-ast */
-        if (strcmp(argv[i] + 2, "tree-ast") == 0) {
-          args |= has_tree_ast;
+        if (strcmp(argv[i] + 2, "ast-graph") == 0) {
+          i++; /* skip to argument */
+          if (argv[i] == NULL || argv[i][0] == '-')
+            return has_error; /* no argument */
+          astgraph_output = argv[i];
           break;
         }
-        /* Check for --tree-cfg */
-        if (strcmp(argv[i] + 2, "tree-cfg") == 0) {
-          args |= has_tree_cfg;
+        if (strcmp(argv[i] + 2, "ast-json") == 0) {
+          i++; /* skip to argument */
+          if (argv[i] == NULL || argv[i][0] == '-')
+            return has_error; /* no argument */
+          astjson_output = argv[i];
           break;
         }
         return has_error; /* invalid option */
@@ -794,45 +1009,20 @@ static int pmain(lua_State *L) {
   if (!runargs(L, argv, optlim)) /* execute arguments -e and -l */
     return 0;                    /* something failed */
 
-  /* Handle --tree-ast: parse and output AST as DOT */
-  if ((args & has_tree_ast) && script > 0) {
-    const char *fname = argv[script];
-    FILE *f = fopen(fname, "r");
-    if (f == NULL) {
-      l_message(progname, "cannot open file");
+  /* Handle --ast-graph option */
+  if (astgraph_output != NULL && script > 0) {
+    if (!handle_astgraph(L, argv[script], astgraph_output))
       return 0;
-    }
-    fclose(f);
-    /* Note: Full AST output requires implementing lus_parsestring() */
-    /* For now, output a placeholder DOT showing the capability */
-    fprintf(stdout, "/* AST DOT output for: %s */\n", fname);
-    fprintf(stdout, "/* Note: Full AST visualization requires lus_parsestring "
-                    "implementation */\n");
-    fprintf(stdout, "digraph AST {\n");
-    fprintf(stdout, "  node [shape=box];\n");
-    fprintf(stdout, "  root [label=\"%s\"];\n", fname);
-    fprintf(stdout, "}\n");
     lua_pushboolean(L, 1);
-    return 1;
+    return 1; /* done - don't run script */
   }
 
-  /* Handle --tree-cfg: compile and output CFG as DOT */
-  if ((args & has_tree_cfg) && script > 0) {
-    const char *fname = argv[script];
-    int status = luaL_loadfile(L, fname);
-    if (status != LUA_OK) {
-      report(L, status);
+  /* Handle --ast-json option */
+  if (astjson_output != NULL && script > 0) {
+    if (!handle_astjson(L, argv[script], astjson_output))
       return 0;
-    }
-    /* Get the compiled Proto */
-    LClosure *cl = cast(LClosure *, lua_topointer(L, -1));
-    if (cl != NULL && cl->p != NULL) {
-      lus_CFG *cfg = lus_build_cfg(L, cl->p);
-      lus_cfg_to_dot(stdout, cfg, cl->p);
-      lus_free_cfg(cfg);
-    }
     lua_pushboolean(L, 1);
-    return 1;
+    return 1; /* done - don't run script */
   }
 
   if (script > 0) { /* execute main script (if there is one) */

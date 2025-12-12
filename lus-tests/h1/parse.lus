@@ -1,0 +1,52 @@
+global print, require, assert, type, string, table, io, fs, debug, pledge, pairs, tostring
+
+pledge("load", "fs:read=./lus-tests/*", "seal")
+
+local framework = require("lus-tests.framework")
+local tests = framework.new("parse")
+
+-- Helper to read a file
+local function readfile(path)
+    local f = io.open(path, "rb")
+    if not f then return nil end
+    local content = f:read("*a")
+    f:close()
+    return content
+end
+
+-- Get all .lus files in the H1 test directory
+local function get_lus_files()
+    local h1_dir = "lus-tests/h1"
+    
+    local list_ok, all_files = catch fs.list(h1_dir, "*.lus")
+    if not list_ok then 
+        return {} 
+    end
+    
+    local files = {}
+    for idx = 1, #all_files do
+        local basename = all_files[idx]
+        -- Skip parse.lus to avoid self-reference
+        if basename ~= "parse.lus" then
+            local path = fs.path.join(h1_dir, basename)
+            files[#files + 1] = {path = path, name = basename}
+        end
+    end
+    
+    return files
+end
+
+-- Create individual tests for each H1 file
+local files = get_lus_files()
+
+for i = 1, #files do
+    local file = files[i]
+    tests:it("parse " .. file.name, function()
+        local content = readfile(file.path)
+        assert(content, "Could not read file: " .. file.path)
+        local ok, ast = catch debug.parse(content, file.name)
+        assert(ok, "Failed to parse file: " .. file.path)
+    end)
+end
+
+tests:finish()

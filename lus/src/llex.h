@@ -12,23 +12,20 @@
 #include "lobject.h"
 #include "lzio.h"
 
-
 /*
 ** Single-char tokens (terminal symbols) are represented by their own
 ** numeric code. Other tokens start at the following value.
 */
 #define FIRST_RESERVED (UCHAR_MAX + 1)
 
-
 #if !defined(LUA_ENV)
 #define LUA_ENV "_ENV"
 #endif
 
-
 /*
-* WARNING: if you change the order of this enumeration,
-* grep "ORDER RESERVED"
-*/
+ * WARNING: if you change the order of this enumeration,
+ * grep "ORDER RESERVED"
+ */
 enum RESERVED {
   /* terminal symbols denoted by reserved words */
   TK_AND = FIRST_RESERVED,
@@ -78,19 +75,16 @@ enum RESERVED {
 /* number of reserved words */
 #define NUM_RESERVED (cast_int(TK_WHILE - FIRST_RESERVED + 1))
 
-
 typedef union {
   lua_Number r;
   lua_Integer i;
   TString *ts;
 } SemInfo; /* semantics information */
 
-
 typedef struct Token {
   int token;
   SemInfo seminfo;
 } Token;
-
 
 /* state of the scanner plus state of the parser when shared by all
    functions */
@@ -110,8 +104,8 @@ typedef struct LexState {
   TString *envn;       /* environment variable name */
   TString *brkn;       /* "break" name (used as a label) */
   TString *glbn;       /* "global" name (when not a reserved word) */
+  struct LusAst *ast;  /* optional AST being built (NULL if not building) */
 } LexState;
-
 
 LUAI_FUNC void luaX_init(lua_State *L);
 LUAI_FUNC void luaX_setinput(lua_State *L, LexState *ls, ZIO *z,
@@ -121,6 +115,5 @@ LUAI_FUNC void luaX_next(LexState *ls);
 LUAI_FUNC int luaX_lookahead(LexState *ls);
 LUAI_FUNC l_noret luaX_syntaxerror(LexState *ls, const char *s);
 LUAI_FUNC const char *luaX_token2str(LexState *ls, int token);
-
 
 #endif

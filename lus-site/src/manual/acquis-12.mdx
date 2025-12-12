@@ -1,0 +1,195 @@
+---
+order: 112
+title: Acquis 12 - AST
+acquis: true
+draft: true
+---
+
+Lus can generate an abstract syntax tree from Lus code using the `debug.parse` function and command-line options, which is mostly useful for static analysis, code transformation, and tooling.
+
+## Programmatic Access
+
+The `debug.parse` function parses a Lus source string and returns its AST as a nested table structure:
+
+```lua
+local ast = debug.parse("local x = 1 + 2")
+-- Returns: {type = "chunk", line = 1, children = {...}}
+```
+
+Returns `nil` if parsing fails. An optional second argument specifies the chunk name for error messages:
+
+```lua
+local ast = debug.parse(code, "myfile.lus")
+```
+
+## AST Structure
+
+Each AST node is a table with:
+
+- `type`: Node type string (e.g., `"chunk"`, `"local"`, `"binop"`)
+- `line`: Source line number where the node begins
+- Type-specific fields depending on the node type
+- `children`: Array of child statement nodes (for block-like nodes)
+
+### Example: Exploring an AST
+
+```lua
+local code = [[
+local x = 1 + 2
+print(x)
+]]
+
+local ast = debug.parse(code)
+
+-- Walk the AST
+local function walk(node, indent)
+  indent = indent or 0
+  local prefix = string.rep("  ", indent)
+  print(prefix .. node.type .. " (line " .. node.line .. ")")
+  
+  if node.children then
+    for _, child in ipairs(node.children) do
+      walk(child, indent + 1)
+    end
+  end
+end
+
+walk(ast)
+-- Output:
+-- chunk (line 1)
+--   local (line 1)
+--   callstat (line 2)
+```
+
+### Node Types
+
+| Category | Types |
+|----------|-------|
+| Statements | `chunk`, `block`, `local`, `global`, `assign`, `if`, `while`, `repeat`, `fornum`, `forgen`, `funcstat`, `localfunc`, `globalfunc`, `return`, `callstat`, `break`, `goto`, `label`, `catchstat`, `do` |
+| Expressions | `nil`, `true`, `false`, `number`, `string`, `vararg`, `name`, `index`, `field`, `binop`, `unop`, `table`, `funcexpr`, `callexpr`, `methodcall`, `catchexpr`, `optchain`, `enum`, `from` |
+| Auxiliary | `param`, `namelist`, `explist`, `elseif`, `else`, `tablefield` |
+
+### Type-Specific Fields
+
+Different node types have different fields:
+
+```lua
+-- Binary operation
+{type = "binop", line = 1, op = "+", left = {...}, right = {...}}
+
+-- Local declaration
+{type = "local", line = 1, names = {...}, values = {...}}
+
+-- Function call
+{type = "callstat", line = 1, func = {...}, args = {...}}
+
+-- If statement
+{type = "if", line = 1, cond = {...}, children = {...}}
+
+-- For loop (numeric)
+{type = "fornum", line = 1, var = {...}, init = {...}, limit = {...}, step = {...}, children = {...}}
+```
+
+## Command-Line Options
+
+### `--ast-graph <file>`
+
+Parses a script and outputs its AST as a Graphviz DOT file for visualization:
+
+```bash
+lus --ast-graph output.dot script.lus
+dot -Tpng output.dot -o ast.png
+```
+
+This does not execute the script, it only parses and outputs the AST structure.
+
+### `--ast-json <file>`
+
+Parses a script and outputs its AST as a JSON file:
+
+```bash
+lus --ast-json output.json script.lus
+```
+
+Example JSON output:
+
+```json
+{
+  "type": "chunk",
+  "line": 1,
+  "children": [
+    {
+      "type": "local",
+      "line": 1,
+      "names": [{"type": "name", "line": 1, "value": "x"}],
+      "values": [
+        {
+          "type": "binop",
+          "line": 1,
+          "op": "+",
+          "left": {"type": "number", "line": 1, "value": 1},
+          "right": {"type": "number", "line": 1, "value": 2}
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Use Cases
+
+### Static Analysis
+
+```lua
+-- Count function calls
+local function count_calls(node)
+  local count = 0
+  if node.type == "callstat" or node.type == "callexpr" then
+    count = 1
+  end
+  if node.children then
+    for _, child in ipairs(node.children) do
+      count = count + count_calls(child)
+    end
+  end
+  return count
+end
+
+local ast = debug.parse(code)
+print("Function calls:", count_calls(ast))
+```
+
+### Code Metrics
+
+```lua
+-- Get all variable names
+local function collect_names(node, names)
+  names = names or {}
+  if node.type == "name" then
+    names[node.value] = true
+  end
+  if node.children then
+    for _, child in ipairs(node.children) do
+      collect_names(child, names)
+    end
+  end
+  return names
+end
+```
+
+### Linting
+
+```lua
+-- Check for global assignments
+local function check_globals(ast, filename)
+  for _, child in ipairs(ast.children or {}) do
+    if child.type == "assign" then
+      for _, lhs in ipairs(child.lhs or {}) do
+        if lhs.type == "name" then
+          print(filename .. ":" .. child.line .. ": warning: global assignment to '" .. lhs.value .. "'")
+        end
+      end
+    end
+  end
+end
+```

@@ -27,6 +27,7 @@ SOURCES=(
   "$SRC_DIR/linit.c"
   "$SRC_DIR/liolib.c"
   "$SRC_DIR/ljsonlib.c"
+  "$SRC_DIR/last.c"
   "$SRC_DIR/llex.c"
   "$SRC_DIR/lmathlib.c"
   "$SRC_DIR/lmem.c"

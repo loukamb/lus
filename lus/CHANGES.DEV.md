@@ -1074,61 +1074,124 @@ Workers require:
 | `lua.c` | `lus_onworker` callback registration in REPL |
 | `meson.build` | Added source file, thread dependency, test |
 
+## AST Infrastructure
 
-## AST Parser and CFG Generator (`lparser2.c`, `lcode2.c`)
+The AST (Abstract Syntax Tree) infrastructure provides optional AST generation during parsing, with multiple output formats and access methods.
 
-A new self-contained AST parser and CFG generator for static analysis, linting, and visualization.
+### Programmatic Access: `debug.parse(code, [chunkname])`
 
-#### Architecture
+Parses a Lua source string and returns its AST as a table:
 
-**`lparser2.h/c`** - Recursive descent parser producing AST nodes:
-- 35+ node types for expressions, statements, and Lus extensions
-- Arena allocator (`lusM_Arena` in `lmem.c`) for efficient memory management
-- Source location preservation in all nodes
-- DOT output via `lus_ast_to_dot()`
-- Lua table conversion via `lus_ast_to_table()` for `debug.parse()` API
+```lua
+local ast = debug.parse("local x = 1 + 2")
+-- Returns: {type = "chunk", line = 1, children = {...}}
+```
 
-**`lcode2.h/c`** - Self-contained code generator and CFG analysis:
-- AST-to-bytecode traversal (does not depend on `lcode.c`)
-- CFG construction from bytecode (basic block identification, edge linking)
-- DOT output via `lus_cfg_to_dot()`
+Returns `nil` if parsing fails. The chunkname defaults to `"=(parse)"`.
 
-#### CLI Options
+### Command-Line Options
+
+#### `--ast-graph <file>`
+
+Parses a script and dumps its AST to a Graphviz DOT file (does not run the script):
 
 ```bash
-lus --tree-ast script.lus   # Output AST as Graphviz DOT
-lus --tree-cfg script.lus   # Output CFG as Graphviz DOT
+lus --ast-graph output.dot script.lus
+dot -Tpng output.dot -o output.png  # Render with Graphviz
 ```
 
-Pipe to `dot -Tpng -o graph.png` for visualization.
+#### `--ast-json <file>`
 
-#### AST Node Types (partial list)
+Parses a script and dumps its AST to a JSON file (does not run the script):
 
-| Category | Types |
-|----------|-------|
-| Literals | `NIL`, `TRUE`, `FALSE`, `INTEGER`, `FLOAT`, `STRING`, `VARARG` |
-| Variables | `VAR`, `UPVAL`, `GLOBAL` |
-| Expressions | `BINOP`, `UNOP`, `CALL`, `METHODCALL`, `INDEX`, `FIELD`, `TABLE`, `FUNCTION` |
-| Statements | `RETURN`, `LOCAL`, `GLOBAL`, `ASSIGN`, `IF`, `WHILE`, `REPEAT`, `FOR`, `FORIN`, `DO`, `BREAK`, `GOTO`, `LABEL` |
-| Lus Extensions | `CATCH`, `ENUM`, `OPTCHAIN`, `FROM` |
+```bash
+lus --ast-json output.json script.lus
+```
 
-#### CFG Structure
+Example JSON output:
+
+```json
+{
+  "type": "chunk",
+  "line": 1,
+  "children": [
+    {
+      "type": "local",
+      "line": 1,
+      "names": [{"type": "name", "line": 1, "value": "x"}],
+      "values": [
+        {
+          "type": "binop",
+          "line": 1,
+          "op": "+",
+          "left": {"type": "number", "line": 1, "value": 1},
+          "right": {"type": "number", "line": 1, "value": 2}
+        }
+      ]
+    }
+  ]
+}
+```
+
+### AST Node Structure
+
+Each AST node contains:
+- `type`: Node type string (e.g., `"chunk"`, `"local"`, `"binop"`)
+- `line`: Source line number
+- Type-specific fields (e.g., `"binop"` has `op`, `left`, `right`)
+- `children`: Array of child statement nodes (for block-like nodes)
+
+### AST Node Types
+
+| Category | Node Types |
+|----------|------------|
+| Statements | `chunk`, `block`, `local`, `global`, `assign`, `if`, `while`, `repeat`, `fornum`, `forgen`, `funcstat`, `localfunc`, `globalfunc`, `return`, `callstat`, `break`, `goto`, `label`, `catchstat`, `do` |
+| Expressions | `nil`, `true`, `false`, `number`, `string`, `vararg`, `name`, `index`, `field`, `binop`, `unop`, `table`, `funcexpr`, `callexpr`, `methodcall`, `enum`, `optchain`, `from`, `catchexpr` |
+| Auxiliary | `param`, `namelist`, `explist`, `elseif`, `else`, `tablefield` |
+
+### Parser Modifications
+
+The parser signature was modified to accept an optional AST pointer:
 
 ```c
-typedef struct lus_CFGBlock {
-  int id;                      /* unique block ID */
-  int startpc, endpc;          /* PC range */
-  struct lus_CFGBlock *truejmp;  /* successor on true/fall-through */
-  struct lus_CFGBlock *falsejmp; /* successor on false branch */
-} lus_CFGBlock;
+LClosure *luaY_parser(lua_State *L, ZIO *z, Mbuffer *buff, Dyndata *dyd,
+                      const char *name, int firstchar, struct LusAst *ast);
 ```
 
-#### New/Modified Files
+When `ast` is non-NULL, the parser builds AST nodes as it parses. The AST pointer is stored in `LexState` and threaded through parser functions.
+
+### C API
+
+```c
+/* Create AST container */
+LusAst *lusA_new(lua_State *L);
+
+/* Free AST and all nodes */
+void lusA_free(lua_State *L, LusAst *ast);
+
+/* Allocate new node */
+LusAstNode *lusA_newnode(LusAst *ast, LusAstType type, int line);
+
+/* Convert AST to Lua table (for debug.parse) */
+void lusA_totable(lua_State *L, LusAst *ast);
+
+/* Export AST to Graphviz DOT file */
+int lusA_tographviz(LusAst *ast, const char *filename);
+
+/* Export AST to JSON file */
+int lusA_tojson(LusAst *ast, const char *filename);
+```
+
+### Modified/New Files
 
 | File | Changes |
 |------|---------|
-| `lmem.h/c` | Added `lusM_Arena` bump allocator |
-| `lparser2.h/c` | AST nodes, parser, DOT/table output (~1200 lines) |
-| `lcode2.h/c` | Code generator, CFG, DOT output (~1200 lines) |
-| `lua.c` | Added `--tree-ast`, `--tree-cfg` CLI options |
-| `meson.build` | Added `lparser2.c`, `lcode2.c` to core sources |
+| `last.h` | AST node types enum, `LusAstNode` struct, `LusAst` container, C API |
+| `last.c` | Implementation (~850 lines): node creation, Lua table conversion, DOT export, JSON export |
+| `lparser.h` | Forward declaration for `LusAst`, modified `luaY_parser` signature |
+| `lparser.c` | Added AST creation in `mainfunc`, includes `last.h` |
+| `llex.h` | Added `ast` field to `LexState` |
+| `ldo.c` | Updated `luaY_parser` call with NULL AST |
+| `ldblib.c` | Implemented `debug.parse` function |
+| `lua.c` | Added `--ast-graph` and `--ast-json` command-line options |
+| `meson.build` | Added `last.c` to core sources |

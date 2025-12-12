@@ -11,6 +11,9 @@
 #include "lobject.h"
 #include "lzio.h"
 
+/* Forward declaration for AST */
+struct LusAst;
+struct LusAstNode;
 
 /*
 ** Expression and variable descriptor.
@@ -71,10 +74,8 @@ typedef enum {
   VCATCH /* catch expression; info = base register; returns (status, result) */
 } expkind;
 
-
 #define vkisvar(k) (VLOCAL <= (k) && (k) <= VINDEXSTR)
 #define vkisindexed(k) (VINDEXED <= (k) && (k) <= VINDEXSTR)
-
 
 typedef struct expdesc {
   expkind k;
@@ -94,10 +95,10 @@ typedef struct expdesc {
       short vidx;   /* index in 'actvar.arr' */
     } var;
   } u;
-  int t; /* patch list of 'exit when true' */
-  int f; /* patch list of 'exit when false' */
+  int t;                  /* patch list of 'exit when true' */
+  int f;                  /* patch list of 'exit when false' */
+  struct LusAstNode *ast; /* AST node for this expression (if AST enabled) */
 } expdesc;
-
 
 /* kinds of variables */
 #define VDKREG 0     /* regular local */
@@ -114,7 +115,6 @@ typedef struct expdesc {
 /* test for global variables */
 #define varglobal(v) ((v)->vd.kind >= GDKREG)
 
-
 /* description of an active variable */
 typedef union Vardesc {
   struct {
@@ -127,7 +127,6 @@ typedef union Vardesc {
   TValue k; /* constant value (if any) */
 } Vardesc;
 
-
 /* description of pending goto statements and label statements */
 typedef struct Labeldesc {
   TString *name; /* label identifier */
@@ -137,14 +136,12 @@ typedef struct Labeldesc {
   lu_byte close; /* true for goto that escapes upvalues */
 } Labeldesc;
 
-
 /* list of labels or gotos */
 typedef struct Labellist {
   Labeldesc *arr; /* array */
   int n;          /* number of entries in use */
   int size;       /* array size */
 } Labellist;
-
 
 /* dynamic structures used by the parser */
 typedef struct Dyndata {
@@ -157,10 +154,8 @@ typedef struct Dyndata {
   Labellist label; /* list of active labels */
 } Dyndata;
 
-
 /* control of blocks */
 struct BlockCnt; /* defined in lparser.c */
-
 
 /* state needed to generate code for a given function */
 typedef struct FuncState {
@@ -185,11 +180,10 @@ typedef struct FuncState {
   lu_byte needclose; /* function needs to close upvalues when returning */
 } FuncState;
 
-
 LUAI_FUNC lu_byte luaY_nvarstack(FuncState *fs);
 LUAI_FUNC void luaY_checklimit(FuncState *fs, int v, int l, const char *what);
 LUAI_FUNC LClosure *luaY_parser(lua_State *L, ZIO *z, Mbuffer *buff,
-                                Dyndata *dyd, const char *name, int firstchar);
-
+                                Dyndata *dyd, const char *name, int firstchar,
+                                struct LusAst *ast);
 
 #endif

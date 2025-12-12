@@ -1074,23 +1074,10 @@ static void f_parser(lua_State *L, void *ud) {
   } else {
     checkmode(L, mode, "text");
 #ifdef LUS_NEW_PARSER
-    /* New AST-based parser + code generator */
-    lus_Node *ast = lus_parse(L, p->z, &p->buff, &p->dyd, p->name, c);
-    if (ast == NULL)
-      luaD_throw(L, LUA_ERRSYNTAX);
-    Proto *f = lus_codegen(L, ast, p->name);
-    if (f == NULL) {
-      lus_freeparse(L, ast);
-      luaD_throw(L, LUA_ERRSYNTAX);
-    }
-    cl = luaF_newLclosure(L, f->sizeupvalues);
-    cl->p = f;
-    setclLvalue2s(L, L->top.p, cl);
-    luaD_inctop(L);
-    luaC_objbarrier(L, cl, f);
-    lus_freeparse(L, ast);
+    /* New unified AST parser + codegen (GC-safe: closure first, then table) */
+    cl = lusY_parser(L, p->z, &p->buff, &p->dyd, p->name, c);
 #else
-    cl = luaY_parser(L, p->z, &p->buff, &p->dyd, p->name, c);
+    cl = luaY_parser(L, p->z, &p->buff, &p->dyd, p->name, c, NULL);
 #endif
   }
   lua_assert(cl->nupvalues == cl->p->sizeupvalues);

@@ -87,34 +87,4 @@ LUAI_FUNC void *luaM_shrinkvector_(lua_State *L, void *block, int *nelem,
                                    int final_n, unsigned size_elem);
 LUAI_FUNC void *luaM_malloc_(lua_State *L, size_t size, int tag);
 
-/*
-** {==================================================================
-** Arena allocator for AST nodes
-** Uses linked blocks that are freed together, avoiding individual
-** allocations and GC overhead during parsing.
-** ===================================================================
-*/
-
-#define LUSM_ARENA_BLOCKSIZE (16 * 1024) /* 16KB default block size */
-
-typedef struct lusM_ArenaBlock {
-  struct lusM_ArenaBlock *next; /* next block in chain */
-  size_t size;                  /* total size of this block */
-  size_t used;                  /* bytes used so far */
-  char data[1];                 /* flexible array for block data */
-} lusM_ArenaBlock;
-
-typedef struct lusM_Arena {
-  lua_State *L;             /* Lua state for memory allocation */
-  lusM_ArenaBlock *head;    /* first block in chain */
-  lusM_ArenaBlock *current; /* current block for allocations */
-  size_t blocksize;         /* default size for new blocks */
-} lusM_Arena;
-
-LUAI_FUNC lusM_Arena *lusM_newarena(lua_State *L, size_t blocksize);
-LUAI_FUNC void *lusM_arenaalloc(lusM_Arena *a, size_t size);
-LUAI_FUNC void lusM_freearena(lusM_Arena *a);
-
-/* }================================================================== */
-
 #endif

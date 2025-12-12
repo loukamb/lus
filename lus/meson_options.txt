@@ -1,2 +1,0 @@
-option('new_parser', type: 'boolean', value: false,
-       description: 'Use new AST-based parser (experimental)')

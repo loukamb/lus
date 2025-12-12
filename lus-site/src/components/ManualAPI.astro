@@ -280,3 +280,25 @@ lus_onworker(L, worker_setup);`}</code></pre>
 <p>
   Opens the worker library. Called automatically by <code>luaL_openlibs</code>.
 </p>
+
+<!-- Debug Library -->
+
+<h2 id="debug.parse">debug.parse (code, [chunkname])</h2>
+<p>
+  Parses a Lus source string and returns its AST (Abstract Syntax Tree) as a
+  nested table structure. Returns <code>nil</code> if parsing fails.
+</p>
+<p>
+  The optional <code>chunkname</code> argument specifies the name used in error messages
+  (defaults to <code>"=(parse)"</code>).
+</p>
+<pre><code>{`local ast = debug.parse("local x = 1 + 2")
+-- Returns: {type = "chunk", line = 1, children = {...}}
+
+-- With custom chunk name
+local ast = debug.parse(code, "myfile.lus")`}</code></pre>
+<p>
+  Each AST node is a table with at minimum <code>type</code> (node type string) and
+  <code>line</code> (source line number). Additional fields depend on node type. See
+  <a href="/manual/acquis-12">Acquis 12</a> for details.
+</p>
